@@ -35,7 +35,6 @@ int main(int argc, char* argv[]) try {
     ov::Core core;
     std::cout << "init core works\n";
     //std::string extension_path = "C:\\Users\\S590\\Documents\\code\\openvino.genai\\build\\llm\\cpp\\Release\\\user_ov_extensions.dll";
-    //std::string extension_path = "C:\\Users\\S590\\Documents\\code\\openvino.genai\\user_ov_extensions.dll"; 
     //core.add_extension(extension_path);
     core.add_extension(USER_OV_EXTENSIONS_PATH);  // USER_OV_EXTENSIONS_PATH is defined in root CMakeLists.txt
 
