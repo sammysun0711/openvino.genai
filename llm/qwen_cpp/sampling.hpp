@@ -63,7 +63,7 @@ TokenIdScore* sampling_top_p(TokenIdScore* first, TokenIdScore* last, float top_
     return last;
 }
 
-void sampling_repetition_penalty(float* first, float* last, const std::vector<int>& input_ids,
+void sampling_repetition_penalty(float* first, float* last, const std::vector<int>& input_ids, int penalty_last_n,
     float penalty) {
     if (penalty < 0) {
         std::cout << "penalty must be a positive float, but got " << penalty;
@@ -72,8 +72,9 @@ void sampling_repetition_penalty(float* first, float* last, const std::vector<in
     const float inv_penalty = 1.f / penalty;
     const int vocab_size = last - first;
     std::vector<bool> occurrence(vocab_size, false);
-    for (const int id : input_ids) {
-        if (!occurrence[id]) {
+    for (auto it = input_ids.begin() + penalty_last_n; it < input_ids.end(); it++) {
+        auto id = *it;
+	if (!occurrence[*it]) {
             first[id] *= (first[id] > 0) ? inv_penalty : penalty;
         }
         occurrence[id] = true;
@@ -86,6 +87,4 @@ void sampling_temperature(float* first, float* last, float temp) {
         *it *= inv_temp;
     }
 }
-
-
 

@@ -175,6 +175,7 @@ struct Args
   float top_p = 0.7;
   float temp = 0.95;
   float repeat_penalty = 1.0;
+  int repeat_last_n = 64;
   int seed = 0;
 };
 
@@ -197,7 +198,8 @@ static auto usage(const std::string &prog) -> void
             << "  -temp, --temperature            N           Specify temperature parameter for sampling (default: 0.95)\n"
 	    << "  -sd,   --seed                   N           Specify seed for sampling (default: 0)\n"
             << "  -rp,   --repeat_penalty         N           Specify penalize sequence of tokens (default: 1.0, means no repeat penalty)\n"
-            << "  -r,    --reduce_logits          N           Apply graph optimization to reduce logits calculation of last matmul (default: 0)\n"
+            << "  -rln,  --repeat_last_n          N           Specify last N tokens for penalize (default: 64)\n"
+	    << "  -r,    --reduce_logits          N           Apply graph optimization to reduce logits calculation of last matmul (default: 0)\n"
             << "  -n     --num_iteration          N           Specify how many iteration used for text sentence, (default: 1)\n"
             << "  -f     --force_max_generation   BOOL        Force llm to generate to max_context_length, (default: 0)\n"
             << "  -v,    --verbose                BOOL        Display verbose output including config/system/performance info\n";
@@ -266,6 +268,10 @@ static auto parse_args(const std::vector<std::string> &argv) -> Args
     else if (arg == "-rp" || arg == "--repeat_penalty") {
       args.repeat_penalty = std::stof(argv[++i]);
     }
+    else if (arg == "-rln" || arg == "--repeat_last_n") {
+      args.repeat_last_n = std::stoi(argv[++i]);
+    }
+
     else if (arg == "-f" || arg == "--force_max_generation")
     {
       args.force_max_generation = true;
@@ -319,7 +325,10 @@ int32_t get_out_token_id(const std::vector<int>& input_ids, float* logits, size_
 
     // logits pre-process
     if (args.repeat_penalty != 1.f) {
-        sampling_repetition_penalty(logits, logits + vocab_size, input_ids, args.repeat_penalty);
+	const int penalty_tokens_used_size = std::min((int)input_ids.size(), args.repeat_last_n);
+        if (penalty_tokens_used_size){
+            sampling_repetition_penalty(logits, logits + vocab_size, input_ids, penalty_tokens_used_size, args.repeat_penalty);
+	}
     }
 
     if (args.do_sample)
