@@ -72,7 +72,7 @@ void sampling_repetition_penalty(float* first, float* last, const std::vector<in
     const float inv_penalty = 1.f / penalty;
     const int vocab_size = last - first;
     std::vector<bool> occurrence(vocab_size, false);
-    for (auto it = input_ids.begin() + penalty_last_n; it < input_ids.end(); it++) {
+    for (auto it = input_ids.end() - penalty_last_n; it > input_ids.begin(); it--) {
         auto id = *it;
 	if (!occurrence[*it]) {
             first[id] *= (first[id] > 0) ? inv_penalty : penalty;
