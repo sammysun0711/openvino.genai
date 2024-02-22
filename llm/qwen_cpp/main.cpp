@@ -1,5 +1,8 @@
 #include "qwen.h"
+#include "sampling.hpp"
 
+#include <regex>
+#include <random>
 #include <chrono>
 #include <iomanip>
 #include <iostream>
@@ -18,6 +21,13 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/serialize.hpp"
+
+#ifdef _WIN32
+#include <codecvt>
+#include <fcntl.h>
+#include <io.h>
+#include <windows.h>
+#endif
 
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
@@ -74,7 +84,7 @@ public:
   explicit InsertSlice()
   {
     auto label = ov::pass::pattern::wrap_type<ov::op::v0::Result>();
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher &m)
+    ov::matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher &m)
     {
       auto root = std::dynamic_pointer_cast<ov::op::v0::Result>(m.get_match_root());
       if (!root)
@@ -157,10 +167,15 @@ struct Args
   std::string device = "CPU";
   bool verbose = false;
   std::string language = "english";
-  bool convert_kv_fp16 = false;
-  bool stateful = false;
+  bool reduce_logits = false;
   int num_iteration = 1;
   bool force_max_generation = 0;
+  bool do_sample = false;
+  int top_k = 0;
+  float top_p = 0.7;
+  float temp = 0.95;
+  float repeat_penalty = 1.0;
+  int seed = 0;
 };
 
 static auto usage(const std::string &prog) -> void
@@ -168,20 +183,24 @@ static auto usage(const std::string &prog) -> void
   std::cout << "Usage: " << prog << " [options]\n"
             << "\n"
             << "options:\n"
-            << "  -h, --help              show this help message and exit\n"
-            << "  -m, --model PATH        model path (default: openvino_model.xml)\n"
-            << "  -t, --tiktoken_path PATH    tokenizer path (default: qwen.tiktoken)\n"
-            << "  -p, --prompt PROMPT     input prompt from user\n"
-            << "  -ml, --max_length N      max total length including prompt and output (default: 2048)\n"
-            << "  -mcl, --max_context_length N\n"
-            << "                          max context length (default: 256)\n"
-            << "  -d, --device DEVICE     specify which device used for inference\n"
-            << "  -l, --language LANGUAGE specify test sentence language, either english or chinese\n"
-            << "  -c, --convert_kv_fp16 CONVERT_KV_FP16 specify whether to convert model input/output kv cache element type as FP16)\n"
-            << "  -s, --stateful STATEFUL specify whether to use stateful model, default use stateless model\n"
-            << "  -n  --num_iteration     specify how many iteration used for text sentence, (default: 1)\n "
-            << "  -f  --force_max_generation     force llm to generate to max_context_length, (default: 0)\n "
-            << "  -v, --verbose           display verbose output including config/system/performance info\n";
+            << "  -h,    --help                               Show this help message and exit\n"
+            << "  -m,    --model                  PATH        Model path (default: openvino_model.xml)\n"
+            << "  -t,    --tiktoken_path          PATH        Tokenizer path (default: qwen.tiktoken)\n"
+            << "  -p,    --prompt                 STRING      Input prompt from user\n"
+            << "  -ml,   --max_length             N           Max total length including prompt and output (default: 2048)\n"
+            << "  -mcl,  --max_context_length     N           Max context length (default: 256)\n"
+            << "  -d,    --device                 STRING      Specify which device used for inference\n"
+            << "  -l,    --language               STRING      Specify test sentence language, either english or chinese\n"
+	    << "  -ds,   --do_sample              BOOL        Specify whether do random sample (default: False)\n"
+            << "  -tk,   --top_k                  N           Specify top-k parameter for sampling (default: 0)\n"
+            << "  -tp,   --top_p                  N           Specify top-p parameter for sampling (default: 0.7)\n"
+            << "  -temp, --temperature            N           Specify temperature parameter for sampling (default: 0.95)\n"
+	    << "  -sd,   --seed                   N           Specify seed for sampling (default: 0)\n"
+            << "  -rp,   --repeat_penalty         N           Specify penalize sequence of tokens (default: 1.0, means no repeat penalty)\n"
+            << "  -r,    --reduce_logits          N           Apply graph optimization to reduce logits calculation of last matmul (default: 0)\n"
+            << "  -n     --num_iteration          N           Specify how many iteration used for text sentence, (default: 1)\n"
+            << "  -f     --force_max_generation   BOOL        Force llm to generate to max_context_length, (default: 0)\n"
+            << "  -v,    --verbose                BOOL        Display verbose output including config/system/performance info\n";
 }
 
 static auto parse_args(const std::vector<std::string> &argv) -> Args
@@ -225,13 +244,27 @@ static auto parse_args(const std::vector<std::string> &argv) -> Args
     {
       args.language = argv[++i];
     }
-    else if (arg == "-c" || arg == "--convert_kv_fp16")
+    else if (arg == "-r" || arg == "--reduce_logits")
     {
-      args.convert_kv_fp16 = true;
+      args.reduce_logits = true;
     }
-    else if (arg == "-s" || arg == "--stateful")
-    {
-      args.stateful = true;
+    else if (arg == "-ds" || arg == "--do_sample") {
+      args.do_sample = true;
+    }
+    else if (arg == "-tk" || arg == "--top_k") {
+      args.top_k = std::stoi(argv[++i]);
+    }
+    else if (arg == "-tp" || arg == "--top_p") {
+      args.top_p = std::stof(argv[++i]);
+    }
+    else if (arg == "-temp" || arg == "--temperature") {
+      args.temp = std::stof(argv[++i]);
+    }
+    else if (arg == "-sd" || arg == "--seed") {
+      args.seed = std::stoi(argv[++i]);
+    }
+    else if (arg == "-rp" || arg == "--repeat_penalty") {
+      args.repeat_penalty = std::stof(argv[++i]);
     }
     else if (arg == "-f" || arg == "--force_max_generation")
     {
@@ -261,17 +294,74 @@ static auto parse_args(int argc, char **argv) -> Args
   std::vector<std::string> argv_vec;
   argv_vec.reserve(argc);
 
+#ifdef _WIN32
+    LPWSTR* wargs = CommandLineToArgvW(GetCommandLineW(), &argc);
+
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+    for (int i = 0; i < argc; i++) {
+        argv_vec.emplace_back(converter.to_bytes(wargs[i]));
+    }
+
+    LocalFree(wargs);
+
+#else
   for (int i = 0; i < argc; i++)
   {
     argv_vec.emplace_back(argv[i]);
   }
+#endif
 
   return parse_args(argv_vec);
 }
 
-static auto get_utf8_line(std::string &line) -> bool
-{
-  return !!std::getline(std::cin, line);
+int32_t get_out_token_id(const std::vector<int>& input_ids, float* logits, size_t vocab_size, Args args) {
+    int32_t out_token;
+
+    // logits pre-process
+    if (args.repeat_penalty != 1.f) {
+        sampling_repetition_penalty(logits, logits + vocab_size, input_ids, args.repeat_penalty);
+    }
+
+    if (args.do_sample)
+    {
+        if (args.temp > 0) {
+            sampling_temperature(logits, logits + vocab_size, args.temp);
+        }
+
+        std::vector<TokenIdScore> token_scores(vocab_size);
+        for (size_t i = 0; i < vocab_size; i++) {
+            token_scores[i] = TokenIdScore(i, logits[i]);
+        }
+
+        // top_k sampling
+        if (0 < args.top_k && args.top_k < (int)token_scores.size()) {
+            sampling_top_k(token_scores.data(), token_scores.data() + args.top_k,
+                token_scores.data() + token_scores.size());
+            token_scores.resize(args.top_k);
+        }
+
+        // top_p sampling
+        if (0.f < args.top_p && args.top_p < 1.f) {
+            auto pos = sampling_top_p(token_scores.data(), token_scores.data() + token_scores.size(), args.top_p);
+            token_scores.resize(pos - token_scores.data());
+        }
+
+        // sample next token
+        sampling_softmax_inplace(token_scores.data(), token_scores.data() + token_scores.size());
+        for (size_t i = 0; i < token_scores.size(); i++) {
+            logits[i] = token_scores[i].score;
+        }
+
+	thread_local std::mt19937 rng(args.seed);
+
+        std::discrete_distribution<> dist(logits, logits + token_scores.size());
+        out_token = token_scores[dist(rng)].id;
+    }
+    else {
+        out_token = std::max_element(logits, logits + vocab_size) - logits;
+    }
+
+    return out_token;
 }
 
 int main(int argc, char **argv)
@@ -316,8 +406,8 @@ int main(int argc, char **argv)
       device_config[ov::enable_profiling.name()] = false;
     }
     constexpr size_t BATCH_SIZE = 1;
-    // Model preparation, convert Qwen input & output kv cache element type from FP32 to FP16
-    if (args.convert_kv_fp16)
+    // Model preparation, apply graph optimization on base model
+    if (args.reduce_logits)
     {
       // Read OpenVINO Model
       std::shared_ptr<ov::Model> model = core.read_model(args.model_path);
@@ -327,27 +417,12 @@ int main(int argc, char **argv)
       inputs = model->inputs();
       auto outputs = model->outputs();
       // Modify model input type to algin with tokenizer outputs with PrePostProcessor
-      std::cout << "######## [Model Graph Optimization] Step 1: Modify model input & output KV cache element type from FP32 to FP16 ########\n";
+      std::cout << "######## [Model Graph Optimization] Step 1: Modify model input element type from i64 to i32 ########\n";
       ov::preprocess::PrePostProcessor p3(model);
       p3.input("input_ids").tensor().set_element_type(ov::element::i32); // cast to the type of tokenizer's output
       p3.input("attention_mask").tensor().set_element_type(ov::element::i32);
       p3.input("position_ids").tensor().set_element_type(ov::element::i32);
       // Change input past key value and output present key value with FP16
-      if (!args.stateful)
-      {
-        for (size_t idx = 1; idx < inputs.size() - 2; ++idx)
-        {
-          p3.input(idx).tensor().set_element_type(ov::element::f16);
-        }
-        for (size_t idx = 1; idx < outputs.size(); ++idx)
-        {
-          p3.output(idx).tensor().set_element_type(ov::element::f16);
-        }
-      }
-      else
-      {
-        std::cout << "Skip convert past kv & present kv on stateful model\n";
-      }
       model = p3.build();
       std::cout << "######## [Model Graph Optimization] Step 2: Insert slice node after reshape to reduce logits operation ########\n";
       ov::pass::Manager manager;
@@ -399,32 +474,22 @@ int main(int argc, char **argv)
         for (int i = 0; i < args.num_iteration; i++)
         {
           text_streamer->put(input_ids);
-          // Prepare input tensor for first infer
-          startTime = Time::now();
-          if (!args.stateful)
-          {
-            for (size_t idx = 1; idx < model_inputs.size() - 2; ++idx)
-            {
-              ireq.get_input_tensor(idx).set_shape({BATCH_SIZE, 0, 32, 128});
-            }
-          }
+	  std::vector<int> output_ids = input_ids;
 
+	  // Prepare input tensor for first infer
           ireq.get_tensor("input_ids").set_shape({BATCH_SIZE, input_ids.size()});
           ireq.get_tensor("attention_mask").set_shape({BATCH_SIZE, input_ids.size()});
           std::copy_n(input_ids.data(), input_ids.size(), ireq.get_tensor("input_ids").data<int32_t>());
           std::fill_n(ireq.get_tensor("attention_mask").data<int32_t>(), input_ids.size(), 1);
 
-          if (args.stateful)
+          // If stateful model contains 3 inputs (input_ids, attention_mask, beam_idx, position_id), use WA to set beam_idx batch=1, value as 0 for greedy search case
+          ireq.get_tensor("beam_idx").set_shape({BATCH_SIZE});
+          ireq.get_tensor("beam_idx").data<int32_t>()[0] = 0;
+          ireq.get_tensor("position_ids").set_shape({BATCH_SIZE, input_ids.size()});
+          std::iota(ireq.get_tensor("position_ids").data<int32_t>(), ireq.get_tensor("position_ids").data<int32_t>() + ireq.get_tensor("position_ids").get_size(), 0);
+          for (auto &&state : ireq.query_state())
           {
-            // If stateful model contains 3 inputs (input_ids, attention_mask, beam_idx, position_id), use WA to set beam_idx batch=1, value as 0 for greedy search case
-            ireq.get_tensor("beam_idx").set_shape({BATCH_SIZE});
-            ireq.get_tensor("beam_idx").data<int32_t>()[0] = 0;
-            ireq.get_tensor("position_ids").set_shape({BATCH_SIZE, input_ids.size()});
-            std::iota(ireq.get_tensor("position_ids").data<int32_t>(), ireq.get_tensor("position_ids").data<int32_t>() + ireq.get_tensor("position_ids").get_size(), 0);
-            for (auto &&state : ireq.query_state())
-            {
-              state.reset();
-            }
+	    state.reset();
           }
 
           std::cout << "Input token length: " << input_ids.size() << "\n";
@@ -447,7 +512,9 @@ int main(int argc, char **argv)
           // Get first inference results
           size_t vocab_size = ireq.get_tensor("logits").get_shape().back();
           float *logits = ireq.get_tensor("logits").data<float>();
-          out_token = int32_t(std::max_element(logits, logits + vocab_size) - logits);
+	  out_token = get_out_token_id(output_ids, logits, vocab_size, args);
+          output_ids.emplace_back(out_token);
+
           if (text_streamer)
           {
             text_streamer->put({out_token});
@@ -470,21 +537,16 @@ int main(int argc, char **argv)
             ireq.get_tensor("attention_mask").set_shape({BATCH_SIZE, ireq.get_tensor("attention_mask").get_shape()[1] + 1});
             std::fill_n(ireq.get_tensor("attention_mask").data<int32_t>(), ireq.get_tensor("attention_mask").get_size(), 1);
             ireq.get_tensor("position_ids").data<int32_t>()[0] = int32_t(ireq.get_tensor("attention_mask").get_size() - 2);
-            if (!args.stateful)
-            {
-              for (size_t idx = 1; idx < model_inputs.size() - 2; ++idx)
-              {
-                ireq.set_input_tensor(idx, ireq.get_output_tensor(idx));
-              }
-            }
-            // 2nd+ inference
+
+	    // 2nd+ inference
             startTime = Time::now();
             ireq.infer();
             duration_ms = get_duration_ms_until_now(startTime);
             count += 1;
             // Get 2nd+ inference results
             logits = ireq.get_tensor("logits").data<float>();
-            out_token = std::max_element(logits, logits + vocab_size) - logits;
+	    out_token = get_out_token_id(output_ids, logits, vocab_size, args);
+            output_ids.emplace_back(out_token);
             if (text_streamer)
             {
               text_streamer->put({out_token});
