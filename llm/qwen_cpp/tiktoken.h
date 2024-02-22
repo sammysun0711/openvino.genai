@@ -27,8 +27,8 @@ static auto _byte_pair_merge(
 
 	auto get_rank = [&piece, &ranks](
 		const std::vector<std::pair<int, int>> &parts,
-		int start_idx,
-		int skip
+		size_t start_idx,
+		size_t skip
 	) -> std::optional<int> {
 		if (start_idx + skip + 2 < parts.size()) {
 			auto s = parts[start_idx].first;
