@@ -87,7 +87,7 @@ public:
   explicit InsertSlice()
   {
     auto label = ov::pass::pattern::wrap_type<ov::op::v0::Result>();
-    ov::matcher_pass_callback callback = [=, this](ov::pass::pattern::Matcher &m)
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher &m)
     {
       auto root = std::dynamic_pointer_cast<ov::op::v0::Result>(m.get_match_root());
       if (!root)
@@ -195,14 +195,14 @@ static auto usage(const std::string &prog) -> void
             << "  -mcl,  --max_context_length     N           Max context length (default: 256)\n"
             << "  -d,    --device                 STRING      Specify which device used for inference\n"
             << "  -l,    --language               STRING      Specify test sentence language, either english or chinese\n"
-	    << "  -ds,   --do_sample              BOOL        Specify whether do random sample (default: False)\n"
+            << "  -ds,   --do_sample              BOOL        Specify whether do random sample (default: False)\n"
             << "  -tk,   --top_k                  N           Specify top-k parameter for sampling (default: 0)\n"
             << "  -tp,   --top_p                  N           Specify top-p parameter for sampling (default: 0.7)\n"
             << "  -temp, --temperature            N           Specify temperature parameter for sampling (default: 0.95)\n"
-	    << "  -sd,   --seed                   N           Specify seed for sampling (default: 0)\n"
+            << "  -sd,   --seed                   N           Specify seed for sampling (default: 0)\n"
             << "  -rp,   --repeat_penalty         N           Specify penalize sequence of tokens (default: 1.0, means no repeat penalty)\n"
             << "  -rln,  --repeat_last_n          N           Specify last N tokens for penalize (default: 64)\n"
-	    << "  -r,    --reduce_logits          N           Apply graph optimization to reduce logits calculation of last matmul (default: 0)\n"
+            << "  -r,    --reduce_logits          N           Apply graph optimization to reduce logits calculation of last matmul (default: 0)\n"
             << "  -n     --num_iteration          N           Specify how many iteration used for text sentence, (default: 1)\n"
             << "  -f     --force_max_generation   BOOL        Force llm to generate to max_context_length, (default: 0)\n"
             << "  -v,    --verbose                BOOL        Display verbose output including config/system/performance info\n";
@@ -253,25 +253,32 @@ static auto parse_args(const std::vector<std::string> &argv) -> Args
     {
       args.reduce_logits = true;
     }
-    else if (arg == "-ds" || arg == "--do_sample") {
+    else if (arg == "-ds" || arg == "--do_sample")
+    {
       args.do_sample = true;
     }
-    else if (arg == "-tk" || arg == "--top_k") {
+    else if (arg == "-tk" || arg == "--top_k")
+    {
       args.top_k = std::stoi(argv[++i]);
     }
-    else if (arg == "-tp" || arg == "--top_p") {
+    else if (arg == "-tp" || arg == "--top_p")
+    {
       args.top_p = std::stof(argv[++i]);
     }
-    else if (arg == "-temp" || arg == "--temperature") {
+    else if (arg == "-temp" || arg == "--temperature")
+    {
       args.temp = std::stof(argv[++i]);
     }
-    else if (arg == "-sd" || arg == "--seed") {
+    else if (arg == "-sd" || arg == "--seed")
+    {
       args.seed = std::stoi(argv[++i]);
     }
-    else if (arg == "-rp" || arg == "--repeat_penalty") {
+    else if (arg == "-rp" || arg == "--repeat_penalty")
+    {
       args.repeat_penalty = std::stof(argv[++i]);
     }
-    else if (arg == "-rln" || arg == "--repeat_last_n") {
+    else if (arg == "-rln" || arg == "--repeat_last_n")
+    {
       args.repeat_last_n = std::stoi(argv[++i]);
     }
 
@@ -304,14 +311,15 @@ static auto parse_args(int argc, char **argv) -> Args
   argv_vec.reserve(argc);
 
 #ifdef _WIN32
-    LPWSTR* wargs = CommandLineToArgvW(GetCommandLineW(), &argc);
+  LPWSTR *wargs = CommandLineToArgvW(GetCommandLineW(), &argc);
 
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-    for (int i = 0; i < argc; i++) {
-        argv_vec.emplace_back(converter.to_bytes(wargs[i]));
-    }
+  std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+  for (int i = 0; i < argc; i++)
+  {
+    argv_vec.emplace_back(converter.to_bytes(wargs[i]));
+  }
 
-    LocalFree(wargs);
+  LocalFree(wargs);
 
 #else
   for (int i = 0; i < argc; i++)
@@ -323,57 +331,66 @@ static auto parse_args(int argc, char **argv) -> Args
   return parse_args(argv_vec);
 }
 
-int32_t get_out_token_id(const std::vector<int>& input_ids, float* logits, size_t vocab_size, Args args) {
-    int32_t out_token;
+int32_t get_out_token_id(const std::vector<int> &input_ids, float *logits, size_t vocab_size, Args args)
+{
+  int32_t out_token;
 
-    // logits pre-process
-    if (args.repeat_penalty != 1.f) {
-	const int penalty_tokens_used_size = std::min((int)input_ids.size(), args.repeat_last_n);
-        if (penalty_tokens_used_size){
-            sampling_repetition_penalty(logits, logits + vocab_size, input_ids, penalty_tokens_used_size, args.repeat_penalty);
-	}
-    }
-
-    if (args.do_sample)
+  // logits pre-process
+  if (args.repeat_penalty != 1.f)
+  {
+    const int penalty_tokens_used_size = std::min((int)input_ids.size(), args.repeat_last_n);
+    if (penalty_tokens_used_size)
     {
-        if (args.temp > 0) {
-            sampling_temperature(logits, logits + vocab_size, args.temp);
-        }
-
-        std::vector<TokenIdScore> token_scores(vocab_size);
-        for (size_t i = 0; i < vocab_size; i++) {
-            token_scores[i] = TokenIdScore(i, logits[i]);
-        }
-
-        // top_k sampling
-        if (0 < args.top_k && args.top_k < (int)token_scores.size()) {
-            sampling_top_k(token_scores.data(), token_scores.data() + args.top_k,
-                token_scores.data() + token_scores.size());
-            token_scores.resize(args.top_k);
-        }
-
-        // top_p sampling
-        if (0.f < args.top_p && args.top_p < 1.f) {
-            auto pos = sampling_top_p(token_scores.data(), token_scores.data() + token_scores.size(), args.top_p);
-            token_scores.resize(pos - token_scores.data());
-        }
-
-        // sample next token
-        sampling_softmax_inplace(token_scores.data(), token_scores.data() + token_scores.size());
-        for (size_t i = 0; i < token_scores.size(); i++) {
-            logits[i] = token_scores[i].score;
-        }
-
-	thread_local std::mt19937 rng(args.seed);
-
-        std::discrete_distribution<> dist(logits, logits + token_scores.size());
-        out_token = token_scores[dist(rng)].id;
+      sampling_repetition_penalty(logits, logits + vocab_size, input_ids, penalty_tokens_used_size, args.repeat_penalty);
     }
-    else {
-        out_token = std::max_element(logits, logits + vocab_size) - logits;
+  }
+
+  if (args.do_sample)
+  {
+    if (args.temp > 0)
+    {
+      sampling_temperature(logits, logits + vocab_size, args.temp);
     }
 
-    return out_token;
+    std::vector<TokenIdScore> token_scores(vocab_size);
+    for (size_t i = 0; i < vocab_size; i++)
+    {
+      token_scores[i] = TokenIdScore((int)i, logits[i]);
+    }
+
+    // top_k sampling
+    if (0 < args.top_k && args.top_k < (int)token_scores.size())
+    {
+      sampling_top_k(token_scores.data(), token_scores.data() + args.top_k,
+                     token_scores.data() + token_scores.size());
+      token_scores.resize(args.top_k);
+    }
+
+    // top_p sampling
+    if (0.f < args.top_p && args.top_p < 1.f)
+    {
+      auto pos = sampling_top_p(token_scores.data(), token_scores.data() + token_scores.size(), args.top_p);
+      token_scores.resize(pos - token_scores.data());
+    }
+
+    // sample next token
+    sampling_softmax_inplace(token_scores.data(), token_scores.data() + token_scores.size());
+    for (size_t i = 0; i < token_scores.size(); i++)
+    {
+      logits[i] = token_scores[i].score;
+    }
+
+    thread_local std::mt19937 rng((size_t)args.seed);
+
+    std::discrete_distribution<> dist(logits, logits + token_scores.size());
+    out_token = token_scores[dist(rng)].id;
+  }
+  else
+  {
+    out_token = std::max_element(logits, logits + vocab_size) - logits;
+  }
+
+  return out_token;
 }
 
 int main(int argc, char **argv)
@@ -462,10 +479,12 @@ int main(int argc, char **argv)
       int32_t out_token;
       int sentence_num = 0;
       std::vector<std::string> sentences;
-      if (!args.prompt.empty()){
+      if (!args.prompt.empty())
+      {
         sentences = {args.prompt};
       }
-      else {
+      else
+      {
         if (args.language.find("ch") != std::string::npos)
         {
           sentences = chinese_sentences;
@@ -486,9 +505,9 @@ int main(int argc, char **argv)
         for (int i = 0; i < args.num_iteration; i++)
         {
           text_streamer->put(input_ids);
-	  std::vector<int> output_ids = input_ids;
+          std::vector<int> output_ids = input_ids;
 
-	  // Prepare input tensor for first infer
+          // Prepare input tensor for first infer
           ireq.get_tensor("input_ids").set_shape({BATCH_SIZE, input_ids.size()});
           ireq.get_tensor("attention_mask").set_shape({BATCH_SIZE, input_ids.size()});
           std::copy_n(input_ids.data(), input_ids.size(), ireq.get_tensor("input_ids").data<int32_t>());
@@ -501,7 +520,7 @@ int main(int argc, char **argv)
           std::iota(ireq.get_tensor("position_ids").data<int32_t>(), ireq.get_tensor("position_ids").data<int32_t>() + ireq.get_tensor("position_ids").get_size(), 0);
           for (auto &&state : ireq.query_state())
           {
-	    state.reset();
+            state.reset();
           }
 
           std::cout << "Input token length: " << input_ids.size() << "\n";
@@ -513,7 +532,7 @@ int main(int argc, char **argv)
           else
           {
             max_context_length = args.max_context_length;
-	  }
+          }
 
           // First inference
           startTime = Time::now();
@@ -524,7 +543,7 @@ int main(int argc, char **argv)
           // Get first inference results
           size_t vocab_size = ireq.get_tensor("logits").get_shape().back();
           float *logits = ireq.get_tensor("logits").data<float>();
-	  out_token = get_out_token_id(output_ids, logits, vocab_size, args);
+          out_token = get_out_token_id(output_ids, logits, vocab_size, args);
           output_ids.emplace_back(out_token);
 
           if (text_streamer)
@@ -538,10 +557,12 @@ int main(int argc, char **argv)
           bool stop_condition = true;
           while (stop_condition)
           {
-            if (args.force_max_generation) {
+            if (args.force_max_generation)
+            {
               stop_condition = count < max_context_length - 1;
             }
-            else {
+            else
+            {
               stop_condition = out_token != config.eos_token_id && out_token != config.im_end_id && count < max_context_length - 1;
             }
             // Prepare input tensor for 2nd+ inference
@@ -550,14 +571,14 @@ int main(int argc, char **argv)
             std::fill_n(ireq.get_tensor("attention_mask").data<int32_t>(), ireq.get_tensor("attention_mask").get_size(), 1);
             ireq.get_tensor("position_ids").data<int32_t>()[0] = int32_t(ireq.get_tensor("attention_mask").get_size() - 2);
 
-	    // 2nd+ inference
+            // 2nd+ inference
             startTime = Time::now();
             ireq.infer();
             duration_ms = get_duration_ms_until_now(startTime);
             count += 1;
             // Get 2nd+ inference results
             logits = ireq.get_tensor("logits").data<float>();
-	    out_token = get_out_token_id(output_ids, logits, vocab_size, args);
+            out_token = get_out_token_id(output_ids, logits, vocab_size, args);
             output_ids.emplace_back(out_token);
             if (text_streamer)
             {
