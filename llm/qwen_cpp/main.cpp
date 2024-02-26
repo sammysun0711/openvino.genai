@@ -6,8 +6,8 @@
 #include <chrono>
 #include <iomanip>
 #include <iostream>
+#include <fstream>
 #include <regex>
-#include <iostream>
 #include <vector>
 
 #include <openvino/openvino.hpp>
@@ -180,6 +180,7 @@ struct Args
   float repeat_penalty = 1.0;
   int repeat_last_n = 64;
   int seed = 0;
+  bool enable_latency_log = false;
 };
 
 static auto usage(const std::string &prog) -> void
@@ -205,7 +206,8 @@ static auto usage(const std::string &prog) -> void
             << "  -r,    --reduce_logits          N           Apply graph optimization to reduce logits calculation of last matmul (default: 0)\n"
             << "  -n     --num_iteration          N           Specify how many iteration used for text sentence, (default: 1)\n"
             << "  -f     --force_max_generation   BOOL        Force llm to generate to max_context_length, (default: 0)\n"
-            << "  -v,    --verbose                BOOL        Display verbose output including config/system/performance info\n";
+            << "  -v,    --verbose                BOOL        Display verbose output including config/system/performance info\n"
+            << "  -ell   --enable_latency_log     BOOL        Enable to save second latency per sentence in disk\n";
 }
 
 static auto parse_args(const std::vector<std::string> &argv) -> Args
@@ -293,6 +295,10 @@ static auto parse_args(const std::vector<std::string> &argv) -> Args
     else if (arg == "-v" || arg == "--verbose")
     {
       args.verbose = true;
+    }
+    else if (arg == "-ell" || arg == "--enable_latency_log")
+    {
+      args.enable_latency_log = true;
     }
     else
     {
@@ -479,6 +485,9 @@ int main(int argc, char **argv)
       int32_t out_token;
       int sentence_num = 0;
       std::vector<std::string> sentences;
+      std::vector<std::vector<double>> second_latencies;
+      second_latencies.resize(sentences.size());
+
       if (!args.prompt.empty())
       {
         sentences = {args.prompt};
@@ -494,9 +503,10 @@ int main(int argc, char **argv)
           sentences = english_sentences;
         }
       }
-
       for (std::string input_text : sentences)
       {
+
+        std::vector<double> second_latency_per_setences;
         // Build input prompt with prompt template
         std::cout << "******************************************* Text Sentence #" << sentence_num << " Start *******************************************\n";
         startTime = Time::now();
@@ -585,7 +595,15 @@ int main(int argc, char **argv)
               text_streamer->put({out_token});
             }
             total_time += duration_ms;
+            if (args.enable_latency_log)
+            {
+              second_latency_per_setences.push_back(duration_ms);
+            };
           }
+          if (args.enable_latency_log)
+          {
+            second_latencies.push_back(second_latency_per_setences);
+          };
           std::cout << '\n';
           if (count > 1)
           {
@@ -599,6 +617,22 @@ int main(int argc, char **argv)
       if (text_streamer)
       {
         text_streamer->end();
+      }
+      if (args.enable_latency_log)
+      {
+        int i = 0;
+        std::ofstream myfile;
+        myfile.open("second_latency_each_sentences.txt");
+        for (auto latencies : second_latencies)
+        {
+          myfile << "Second token Latency of sentence number:  " << i << "\n";
+          for (auto latency : latencies)
+          {
+            myfile << latency << "\n";
+          }
+          i++;
+        }
+        myfile.close();
       }
     }
   }
