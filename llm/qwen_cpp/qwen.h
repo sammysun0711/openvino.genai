@@ -57,7 +57,6 @@ class TextStreamer : public BaseStreamer {
 
 struct QwenConfig {
   // common attributes
-  // ggml_type dtype;
   int vocab_size = 151936;
   int hidden_size = 4096;
   int num_attention_heads = 32;

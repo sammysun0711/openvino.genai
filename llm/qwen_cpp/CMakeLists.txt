@@ -20,14 +20,24 @@ add_subdirectory(third_party/re2)
 
 file(GLOB CPP_SOURCES
   ${PROJECT_SOURCE_DIR}/*.h
+  ${PROJECT_SOURCE_DIR}/*.hpp
   ${PROJECT_SOURCE_DIR}/*.cpp)
 
 add_library(qwen STATIC qwen.cpp)
+add_library(openvino_backend_api STATIC openvino_backend_api.cpp)
+target_link_libraries(openvino_backend_api PUBLIC re2::re2)
 target_link_libraries(qwen PUBLIC re2::re2)
 
 add_executable(main main.cpp)
+add_executable(test test.cpp)
+
 target_link_libraries(main PRIVATE qwen)
 target_link_libraries(main PRIVATE openvino::runtime)
+
+target_link_libraries(test PRIVATE qwen)
+target_link_libraries(test PRIVATE openvino_backend_api)
+target_link_libraries(openvino_backend_api PUBLIC openvino::runtime)
+
 
 if (MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall /wd4710 /wd4711")

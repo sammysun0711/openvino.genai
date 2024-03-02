@@ -463,12 +463,12 @@ int main(int argc, char **argv)
       ov::pass::Manager manager;
       manager.register_pass<InsertSlice>();
       manager.run_passes(model);
-      std::string modifiled_file = std::regex_replace(args.model_path, std::regex("openvino_model"), "modified_openvino_model");
-      std::cout << "######## [Model Graph Optimization] Step 3: Save modified model in " << modifiled_file << " ########\n";
-      ov::serialize(model, modifiled_file);
+      std::string modified_file = std::regex_replace(args.model_path, std::regex("openvino_model"), "modified_openvino_model");
+      std::cout << "######## [Model Graph Optimization] Step 3: Save modified model in " << modified_file << " ########\n";
+      ov::serialize(model, modified_file);
       // Compile modified model from disk to create model cache
       startTime = Time::now();
-      ov::CompiledModel compiled_model = core.compile_model(modifiled_file, args.device, device_config);
+      ov::CompiledModel compiled_model = core.compile_model(modified_file, args.device, device_config);
       duration_ms = get_duration_ms_until_now(startTime);
       std::cout << "Compile model and save model cache took: " << duration_ms << " ms" << std::endl;
       return 0;
@@ -506,7 +506,7 @@ int main(int argc, char **argv)
       for (std::string input_text : sentences)
       {
 
-        std::vector<double> second_latency_per_setences;
+        std::vector<double> second_latency_per_sentences;
         // Build input prompt with prompt template
         std::cout << "******************************************* Text Sentence #" << sentence_num << " Start *******************************************\n";
         startTime = Time::now();
@@ -597,12 +597,12 @@ int main(int argc, char **argv)
             total_time += duration_ms;
             if (args.enable_latency_log)
             {
-              second_latency_per_setences.push_back(duration_ms);
+              second_latency_per_sentences.push_back(duration_ms);
             };
           }
           if (args.enable_latency_log)
           {
-            second_latencies.push_back(second_latency_per_setences);
+            second_latencies.push_back(second_latency_per_sentences);
           };
           std::cout << '\n';
           if (count > 1)
