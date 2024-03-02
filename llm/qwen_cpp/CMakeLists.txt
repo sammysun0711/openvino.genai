@@ -24,7 +24,7 @@ file(GLOB CPP_SOURCES
   ${PROJECT_SOURCE_DIR}/*.cpp)
 
 add_library(qwen STATIC qwen.cpp)
-add_library(openvino_backend_api STATIC openvino_backend_api.cpp)
+add_library(openvino_backend_api SHARED openvino_backend_api.cpp)
 target_link_libraries(openvino_backend_api PUBLIC re2::re2)
 target_link_libraries(qwen PUBLIC re2::re2)
 
@@ -34,9 +34,8 @@ add_executable(test test.cpp)
 target_link_libraries(main PRIVATE qwen)
 target_link_libraries(main PRIVATE openvino::runtime)
 
-target_link_libraries(test PRIVATE qwen)
-target_link_libraries(test PRIVATE openvino_backend_api)
-target_link_libraries(openvino_backend_api PUBLIC openvino::runtime)
+target_link_libraries(test PUBLIC openvino_backend_api)
+target_link_libraries(openvino_backend_api PUBLIC openvino::runtime qwen)
 
 
 if (MSVC)
