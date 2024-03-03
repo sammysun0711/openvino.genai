@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.12)
-project(qwen.cpp VERSION 0.0.1 LANGUAGES CXX)
+project(openvino_backend_api VERSION 1.0 LANGUAGES CXX)
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib CACHE STRING "")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib CACHE STRING "")
@@ -25,18 +25,11 @@ file(GLOB CPP_SOURCES
 
 add_library(qwen STATIC qwen.cpp)
 add_library(openvino_backend_api SHARED openvino_backend_api.cpp)
-target_link_libraries(openvino_backend_api PUBLIC re2::re2)
 target_link_libraries(qwen PUBLIC re2::re2)
 
-add_executable(main main.cpp)
 add_executable(test test.cpp)
-
-target_link_libraries(main PRIVATE qwen)
-target_link_libraries(main PRIVATE openvino::runtime)
-
 target_link_libraries(test PUBLIC openvino_backend_api)
 target_link_libraries(openvino_backend_api PUBLIC openvino::runtime qwen)
-
 
 if (MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall /wd4710 /wd4711")
@@ -45,6 +38,4 @@ if (MSVC)
 else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall")
     set_source_files_properties(${CPP_SOURCES} PROPERTIES COMPILE_FLAGS "-pedantic-errors")
-    target_compile_options(main PRIVATE -Wall)  # Display all warnings
 endif ()
-
