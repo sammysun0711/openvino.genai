@@ -1,6 +1,7 @@
 #include "openvino_backend_api.h"
 #include "sampling.hpp"
 #include <random>
+#include <cassert>
 
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
@@ -109,6 +110,8 @@ namespace openvino_backend
   void api_interface::api_loadmodel(char *buffer, int thread_num)
   {
     std::cout << "\n[OpenVINO Backend API Interface] load model called\n";
+    // Set number of compilation thread
+    _device_config[ov::compilation_num_threads.name()] = thread_num;
     auto startTime = Time::now();
     _infer_request = std::make_unique<ov::InferRequest>(_core.compile_model(std::string(buffer), _device, _device_config).create_infer_request());
     auto llm_load_duration = get_duration_ms_until_now(startTime);
@@ -145,6 +148,8 @@ namespace openvino_backend
   // 流式接口
   bool api_interface::api_Generate(const std::string &prompt, const params &params, void (*api_callback)(int32_t *new_token_id, bool *_stop_generation))
   {
+    assert(("LLM Model not loaded!", _infer_request != nullptr));
+    assert(("Tokenizer not loaded!", _tokenizer != nullptr));
     _api_status = status::inference;
     std::cout << "\n[OpenVINO Backend API Interface] non-stream generate called\n";
     // std::vector<int> input_ids = _tokenizer->encode_history({prompt}, params.n_ctx);
@@ -188,6 +193,8 @@ namespace openvino_backend
 
   std::string api_interface::api_Generate(const std::string &prompt, const params &params)
   {
+    assert(("LLM Model not loaded!", _infer_request != nullptr));
+    assert(("Tokenizer not loaded!", _tokenizer != nullptr));
     _api_status = status::inference;
     std::cout << "\n[OpenVINO Backend API Interface] non-stream generate called\n";
     // std::vector<int> input_ids = _tokenizer->encode_history({prompt}, params.n_ctx);

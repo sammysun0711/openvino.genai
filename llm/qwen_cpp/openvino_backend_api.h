@@ -40,7 +40,7 @@ struct params
 
 namespace openvino_backend
 {
-    OPENVINO_CORE_EXPORTS struct PerformanceStatistic
+    struct PerformanceStatistic
     {
         // LLM Model
         double llm_load_duration = 0.0;
@@ -59,7 +59,8 @@ namespace openvino_backend
         int generated_token_num = 0;
     };
 
-    OPENVINO_CORE_EXPORTS enum status {
+    enum status
+    {
         init = 0,      // Init parameters
         loaded = 1,    // Model loaded or reset
         unloaded = 2,  // Unload model -> Release model and tokenizer
@@ -70,12 +71,13 @@ namespace openvino_backend
     class api_interface
     {
         /*
-        void api_callback(int32_t *new_token_id, bool *new_token_available)
+        // Example for callback function used in stream generation case
+        void callback(int32_t *new_token_id, bool *stop_generation)
         {
-            //*new_token_id = _new_token_id;
-            //*new_token_available = _new_token_available;
-            std::cout << *new_token_id << "\n";
-            std::cout << *new_token_available << "\n";
+            if (!*stop_generation)
+            {
+                std::cout << *new_token_id << "\n";
+            }
         }
         */
 
@@ -111,11 +113,12 @@ namespace openvino_backend
         // 停止生成
         OPENVINO_CORE_EXPORTS bool api_stop();
 
+        // Get performance statistic
+        OPENVINO_CORE_EXPORTS PerformanceStatistic get_performance_statistics();
+
         int32_t generate_first_token(std::vector<int> &input_ids, const params &params);
 
         int32_t generate_next_token(int32_t input_token, std::vector<int32_t> history_ids, const params &params);
-
-        OPENVINO_CORE_EXPORTS PerformanceStatistic get_performance_statistics();
 
     private:
         ov::Core _core;
