@@ -1,7 +1,7 @@
 #include "openvino_backend_api.h"
 #include "sampling.hpp"
 #include <random>
-#include <cassert>
+// #include <cassert>
 
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
@@ -76,12 +76,16 @@ namespace openvino_backend
   // 参数初始化
   api_interface::api_interface(const params &params)
   {
-    std::cout << "\n[OpenVINO Backend API Interface] init parameters called\n";
-    // Init OpenVINO Runtime
-    std::cout << "Init OpenVINO backend with version: \n"
-              << ov::get_openvino_version() << std::endl;
+    _verbose = params.verbose;
     _device = params.device;
     _model_cache_dir = params.model_cache_dir;
+    if (_verbose)
+    {
+      std::cout << "\n[OpenVINO Backend API Interface] init parameters called\n";
+      // Init OpenVINO Runtime
+      std::cout << "Init OpenVINO backend with version: \n"
+                << ov::get_openvino_version() << std::endl;
+    }
     if (_device.find("CPU") != std::string::npos)
     {
       _device_config[ov::cache_dir.name()] = _model_cache_dir;
@@ -104,18 +108,25 @@ namespace openvino_backend
   {
     api_stop();
     api_unloadmodel();
+    api_unloadtokenizer();
   }
 
   // 加载模型
   void api_interface::api_loadmodel(char *buffer, int thread_num)
   {
-    std::cout << "\n[OpenVINO Backend API Interface] load model called\n";
+    if (_verbose)
+    {
+      std::cout << "\n[OpenVINO Backend API Interface] load model called\n";
+    }
     // Set number of compilation thread
     _device_config[ov::compilation_num_threads.name()] = thread_num;
     auto startTime = Time::now();
     _infer_request = std::make_unique<ov::InferRequest>(_core.compile_model(std::string(buffer), _device, _device_config).create_infer_request());
     auto llm_load_duration = get_duration_ms_until_now(startTime);
-    std::cout << "Load llm took: " << llm_load_duration << " ms\n";
+    if (_verbose)
+    {
+      std::cout << "Load llm took: " << llm_load_duration << " ms\n";
+    }
     _perf_statistic.llm_load_duration = llm_load_duration;
     _vocab_size = _infer_request->get_tensor("logits").get_shape().back();
     _api_status = status::loaded;
@@ -124,34 +135,59 @@ namespace openvino_backend
   // Load tokenizer with model path
   void api_interface::api_loadtokenizer(std::string tokenizer_path)
   {
-    std::cout << "\n[OpenVINO Backend API Interface] load tokenizer with model path called\n";
+    if (_verbose)
+    {
+      std::cout << "\n[OpenVINO Backend API Interface] load tokenizer with model path called\n";
+    };
     auto startTime = Time::now();
 
     _tokenizer = std::make_shared<qwen::QwenTokenizer>(tokenizer_path, _tokenizer_config);
     auto tokenizer_load_duration = get_duration_ms_until_now(startTime);
-    std::cout << "Load tokenizer took: " << tokenizer_load_duration << " ms\n";
+    if (_verbose)
+    {
+      std::cout << "Load tokenizer took: " << tokenizer_load_duration << " ms\n";
+    }
     _perf_statistic.tokenizer_load_duration = tokenizer_load_duration;
   }
 
   // Load tokenizer with passed pointer
   void api_interface::api_loadtokenizer(std::shared_ptr<qwen::QwenTokenizer> tokenizer_ptr)
   {
-    std::cout << "\n[OpenVINO Backend API Interface] load tokenizer with passed tokenizer pointer called\n";
+    if (_verbose)
+    {
+      std::cout << "\n[OpenVINO Backend API Interface] load tokenizer with passed tokenizer pointer called\n";
+    }
     auto startTime = Time::now();
 
     _tokenizer = tokenizer_ptr;
     auto tokenizer_load_duration = get_duration_ms_until_now(startTime);
-    std::cout << "Load tokenizer took: " << tokenizer_load_duration << " ms\n";
+    if (_verbose)
+    {
+      std::cout << "Load tokenizer took: " << tokenizer_load_duration << " ms\n";
+    }
     _perf_statistic.tokenizer_load_duration = tokenizer_load_duration;
   }
 
   // 流式接口
   bool api_interface::api_Generate(const std::string &prompt, const params &params, void (*api_callback)(int32_t *new_token_id, bool *_stop_generation))
   {
-    assert(("LLM Model not loaded!", _infer_request != nullptr));
-    assert(("Tokenizer not loaded!", _tokenizer != nullptr));
+    // assert(("LLM Model not loaded!", _infer_request != nullptr));
+    // assert(("Tokenizer not loaded!", _tokenizer != nullptr));
+
+    if (_verbose)
+    {
+      std::cout << "\n[OpenVINO Backend API Interface] non-stream generate called\n";
+    }
+    if (_infer_request == nullptr)
+    {
+      throw std::runtime_error("[OpenVINO Backend API Interface] Runtime Error: LLM Model not loaded!");
+    };
+    if (_tokenizer == nullptr)
+    {
+      throw std::runtime_error("[OpenVINO Backend API Interface] Runtime Error: Tokenizer Model not loaded!");
+    };
+
     _api_status = status::inference;
-    std::cout << "\n[OpenVINO Backend API Interface] non-stream generate called\n";
     // std::vector<int> input_ids = _tokenizer->encode_history({prompt}, params.n_ctx);
     std::vector<int> input_ids = _tokenizer->encode(prompt, params.n_ctx);
     std::vector<int> history_ids = input_ids;
@@ -185,18 +221,34 @@ namespace openvino_backend
 
     _perf_statistic.generated_token_num = history_ids.size() - input_ids.size();
     _perf_statistic.llm_average_token_per_second = _perf_statistic.generated_token_num / _perf_statistic.llm_generate_next_token_duration * 1000.0;
-    std::cout << "Average next token generation speed: " << _perf_statistic.llm_average_token_per_second << " token per second.\n";
+    if (_verbose)
+    {
+      std::cout << "Average next token generation speed: " << _perf_statistic.llm_average_token_per_second << " token per second.\n";
+    }
     _api_status = status::loaded;
 
     return true;
   }
 
+  // 非流式接口
   std::string api_interface::api_Generate(const std::string &prompt, const params &params)
   {
-    assert(("LLM Model not loaded!", _infer_request != nullptr));
-    assert(("Tokenizer not loaded!", _tokenizer != nullptr));
+    // assert(("LLM Model not loaded!", _infer_request != nullptr));
+    // assert(("Tokenizer not loaded!", _tokenizer != nullptr));
+    if (_verbose)
+    {
+      std::cout << "\n[OpenVINO Backend API Interface] non-stream generate called\n";
+    }
+    if (_infer_request == nullptr)
+    {
+      throw std::runtime_error("[OpenVINO Backend API Interface] Runtime Error: LLM Model not loaded!");
+    };
+    if (_tokenizer == nullptr)
+    {
+      throw std::runtime_error("[OpenVINO Backend API Interface] Runtime Error: Tokenizer Model not loaded!");
+    };
     _api_status = status::inference;
-    std::cout << "\n[OpenVINO Backend API Interface] non-stream generate called\n";
+
     // std::vector<int> input_ids = _tokenizer->encode_history({prompt}, params.n_ctx);
     std::vector<int> input_ids = _tokenizer->encode(prompt, params.n_ctx);
     std::vector<int> history_ids = input_ids;
@@ -221,7 +273,10 @@ namespace openvino_backend
 
     _perf_statistic.generated_token_num = output_ids.size() - 1;
     _perf_statistic.llm_average_token_per_second = _perf_statistic.generated_token_num / _perf_statistic.llm_generate_next_token_duration * 1000.0;
-    std::cout << "Average next token generation speed: " << _perf_statistic.llm_average_token_per_second << " token per second.\n";
+    if (_verbose)
+    {
+      std::cout << "Average next token generation speed: " << _perf_statistic.llm_average_token_per_second << " token per second.\n";
+    }
 
     std::string response = _tokenizer->decode(output_ids);
     _api_status = status::loaded;
@@ -231,6 +286,14 @@ namespace openvino_backend
 
   int32_t api_interface::generate_first_token(std::vector<int> &input_ids, const params &params)
   {
+    if (_infer_request == nullptr)
+    {
+      throw std::runtime_error("[OpenVINO Backend API Interface] Runtime Error: LLM Model not loaded!");
+    };
+    if (_tokenizer == nullptr)
+    {
+      throw std::runtime_error("[OpenVINO Backend API Interface] Runtime Error: Tokenizer Model not loaded!");
+    };
     // Prepare input tensor for first infer
     _infer_request->get_tensor("input_ids").set_shape({BATCH_SIZE, input_ids.size()});
     _infer_request->get_tensor("attention_mask").set_shape({BATCH_SIZE, input_ids.size()});
@@ -250,10 +313,16 @@ namespace openvino_backend
     _infer_request->start_async();
     _infer_request->wait();
     auto first_infer_duration_ms = get_duration_ms_until_now(startTime);
-    std::cout << "First inference took: " << first_infer_duration_ms << " ms" << std::endl;
+    if (_verbose)
+    {
+      std::cout << "First inference took: " << first_infer_duration_ms << " ms" << std::endl;
+    }
     _perf_statistic.llm_first_infer_duration = first_infer_duration_ms;
     _perf_statistic.llm_prompt_evaluation_speed = _perf_statistic.input_token_num / _perf_statistic.llm_first_infer_duration * 1000.0;
-    std::cout << "Input token num: " << _perf_statistic.input_token_num << ", prompt evaluation speed: " << _perf_statistic.llm_prompt_evaluation_speed << " token per second.\n";
+    if (_verbose)
+    {
+      std::cout << "Input token num: " << _perf_statistic.input_token_num << ", prompt evaluation speed: " << _perf_statistic.llm_prompt_evaluation_speed << " token per second.\n";
+    }
     auto logits = _infer_request->get_tensor("logits").data<float>();
     int32_t output_token = get_out_token_id(input_ids, logits, _vocab_size, params);
     return output_token;
@@ -261,6 +330,14 @@ namespace openvino_backend
 
   int32_t api_interface::generate_next_token(int32_t input_token, std::vector<int32_t> history_ids, const params &params)
   {
+    if (_infer_request == nullptr)
+    {
+      throw std::runtime_error("[OpenVINO Backend API Interface] Runtime Error: LLM Model not loaded!");
+    };
+    if (_tokenizer == nullptr)
+    {
+      throw std::runtime_error("[OpenVINO Backend API Interface] Runtime Error: Tokenizer Model not loaded!");
+    };
     _infer_request->get_tensor("input_ids").data<int32_t>()[0] = input_token;
     _infer_request->get_tensor("attention_mask").set_shape({BATCH_SIZE, _infer_request->get_tensor("attention_mask").get_shape()[1] + 1});
     std::fill_n(_infer_request->get_tensor("attention_mask").data<int32_t>(), _infer_request->get_tensor("attention_mask").get_size(), 1);
@@ -283,8 +360,15 @@ namespace openvino_backend
   // 环境复位
   void api_interface::api_Reset()
   {
-    std::cout << "\n[OpenVINO Backend API Interface] reset called\n";
+    if (_verbose)
+    {
+      std::cout << "\n[OpenVINO Backend API Interface] reset called\n";
+    }
     // Reset infer request internal state
+    if (_infer_request == nullptr)
+    {
+      throw std::runtime_error("[OpenVINO Backend API Interface] Runtime Error: LLM Model not loaded!");
+    };
     for (auto &&state : _infer_request->query_state())
     {
       state.reset();
@@ -300,13 +384,37 @@ namespace openvino_backend
   // 卸载模型
   bool api_interface::api_unloadmodel()
   {
-    std::cout << "\n[OpenVINO Backend API Interface] unload model called\n";
+    if (_verbose)
+    {
+      std::cout << "\n[OpenVINO Backend API Interface] unload model called\n";
+    }
     auto startTime = Time::now();
     _infer_request = nullptr;
     auto llm_unload_duration = get_duration_ms_until_now(startTime);
-    std::cout << "Unload llm took: " << llm_unload_duration << " ms\n";
+    if (_verbose)
+    {
+      std::cout << "Unload llm took: " << llm_unload_duration << " ms\n";
+    }
     _perf_statistic.llm_unload_duration = llm_unload_duration;
     _api_status = status::unloaded;
+
+    return true;
+  }
+
+  // Unload tokenizer
+  bool api_interface::api_unloadtokenizer()
+  {
+    if (_verbose)
+    {
+      std::cout << "\n[OpenVINO Backend API Interface] unload tokenizer called\n";
+    }
+    auto startTime = Time::now();
+    _tokenizer = nullptr;
+    auto tokenizer_unload_duration = get_duration_ms_until_now(startTime);
+    if (_verbose)
+    {
+      std::cout << "Unload tokenizer took: " << tokenizer_unload_duration << " ms\n";
+    }
 
     return true;
   }
@@ -314,23 +422,41 @@ namespace openvino_backend
   // 获取状态
   int api_interface::api_status()
   {
-    std::cout << "\n[OpenVINO Backend API Interface] api_status called\n";
+    if (_verbose)
+    {
+      std::cout << "\n[OpenVINO Backend API Interface] api_status called\n";
+    }
     switch (_api_status)
     {
     case status::init:
-      std::cout << "OpenVINO backend status: Initialized\n";
+      if (_verbose)
+      {
+        std::cout << "OpenVINO backend status: Initialized\n";
+      }
       break;
     case status::loaded:
-      std::cout << "OpenVINO backend status: Loaded\n";
+      if (_verbose)
+      {
+        std::cout << "OpenVINO backend status: Loaded\n";
+      }
       break;
     case status::unloaded:
-      std::cout << "OpenVINO backend status: Unloaded\n";
+      if (_verbose)
+      {
+        std::cout << "OpenVINO backend status: Unloaded\n";
+      }
       break;
     case status::inference:
-      std::cout << "OpenVINO backend status: Running Inference\n";
+      if (_verbose)
+      {
+        std::cout << "OpenVINO backend status: Running Inference\n";
+      }
       break;
     default:
-      std::cout << "OpenVINO backend status: Uninitialized\n";
+      if (_verbose)
+      {
+        std::cout << "OpenVINO backend status: Uninitialized\n";
+      }
     }
 
     return _api_status;
@@ -339,13 +465,23 @@ namespace openvino_backend
   // 停止生成
   bool api_interface::api_stop()
   {
-    std::cout << "\n[OpenVINO Backend API Interface] stop generation called\n";
+    if (_verbose)
+    {
+      std::cout << "\n[OpenVINO Backend API Interface] stop generation called\n";
+    }
     // Cancel infer request
     auto startTime = Time::now();
+    if (_infer_request == nullptr)
+    {
+      throw std::runtime_error("[OpenVINO Backend API Interface] Runtime Error: LLM Model not loaded!");
+    };
     _infer_request->cancel();
     _stop_generation = true;
     auto llm_cancel_duration = get_duration_ms_until_now(startTime);
-    std::cout << "Cancel llm took: " << llm_cancel_duration << " ms\n";
+    if (_verbose)
+    {
+      std::cout << "Cancel llm took: " << llm_cancel_duration << " ms\n";
+    }
     _perf_statistic.llm_cancel_duration = llm_cancel_duration;
     _api_status = status::loaded;
 

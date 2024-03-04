@@ -23,8 +23,8 @@
 
 struct params
 {
-    std::string model_path = "openvino_model.xml";
-    std::string tokenizer_path = "qwen.tiktoken";
+    std::string model_path = "Qwen-7B-Chat-NNCF_INT4\\openvino_model.xml";
+    std::string tokenizer_path = "Qwen-7B-Chat-NNCF_INT4\\qwen.tiktoken";
     int32_t n_ctx = 2048;
     int32_t n_predict = 512;
     bool do_sample = true;
@@ -36,6 +36,7 @@ struct params
     int32_t seed = -1;
     std::string model_cache_dir = "openvino_cache";
     std::string device = "GPU";
+    bool verbose = true;
 };
 
 namespace openvino_backend
@@ -107,6 +108,9 @@ namespace openvino_backend
         // 卸载模型
         OPENVINO_CORE_EXPORTS bool api_unloadmodel();
 
+        // 卸载Tokenizer
+        OPENVINO_CORE_EXPORTS bool api_unloadtokenizer();
+
         // 获取状态
         OPENVINO_CORE_EXPORTS int api_status();
 
@@ -135,5 +139,6 @@ namespace openvino_backend
         status _api_status;
         int32_t _new_token_id = _tokenizer_config.im_end_id;
         bool _stop_generation = false;
+        bool _verbose = true;
     }; // api_interface
 } // namespace openvino_backend
