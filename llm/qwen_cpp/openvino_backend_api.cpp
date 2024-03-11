@@ -1,7 +1,7 @@
+#include <random>
+#include <cassert>
 #include "openvino_backend_api.h"
 #include "sampling.hpp"
-#include <random>
-// #include <cassert>
 
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
@@ -11,7 +11,7 @@ double get_duration_ms_until_now(Time::time_point &startTime)
   return std::chrono::duration_cast<ns>(Time::now() - startTime).count() * 0.000001;
 }
 
-int32_t get_out_token_id(const std::vector<int> &history_ids, float *logits, size_t vocab_size, params params)
+int32_t get_out_token_id(const std::vector<int> &history_ids, float *logits, size_t vocab_size, ov_params params)
 {
   int32_t out_token;
   // logits pre-process
@@ -74,7 +74,7 @@ int32_t get_out_token_id(const std::vector<int> &history_ids, float *logits, siz
 namespace openvino_backend
 {
   // 参数初始化
-  api_interface::api_interface(const params &params)
+  api_interface::api_interface(const ov_params &params)
   {
     _verbose = params.verbose;
     _device = params.device;
@@ -132,7 +132,7 @@ namespace openvino_backend
     _api_status = status::loaded;
   }
 
-  // Load tokenizer with model path
+  // 通过路径加载Tokenizer
   void api_interface::api_loadtokenizer(std::string tokenizer_path)
   {
     if (_verbose)
@@ -150,7 +150,7 @@ namespace openvino_backend
     _perf_statistic.tokenizer_load_duration = tokenizer_load_duration;
   }
 
-  // Load tokenizer with passed pointer
+  // 通过指针加载Tokenizer
   void api_interface::api_loadtokenizer(std::shared_ptr<qwen::QwenTokenizer> tokenizer_ptr)
   {
     if (_verbose)
@@ -169,14 +169,13 @@ namespace openvino_backend
   }
 
   // 流式接口
-  bool api_interface::api_Generate(const std::string &prompt, const params &params, void (*api_callback)(int32_t *new_token_id, bool *_stop_generation))
+  bool api_interface::api_Generate(const std::string &prompt, const ov_params &params, void (*api_callback)(int32_t *new_token_id, bool *_stop_generation))
   {
-    // assert(("LLM Model not loaded!", _infer_request != nullptr));
-    // assert(("Tokenizer not loaded!", _tokenizer != nullptr));
-
+    assert(("LLM Model not loaded!", _infer_request != nullptr));
+    assert(("Tokenizer not loaded!", _tokenizer != nullptr));
     if (_verbose)
     {
-      std::cout << "\n[OpenVINO Backend API Interface] non-stream generate called\n";
+      std::cout << "\n[OpenVINO Backend API Interface] stream generation called\n";
     }
     if (_infer_request == nullptr)
     {
@@ -231,13 +230,13 @@ namespace openvino_backend
   }
 
   // 非流式接口
-  std::string api_interface::api_Generate(const std::string &prompt, const params &params)
+  std::string api_interface::api_Generate(const std::string &prompt, const ov_params &params)
   {
-    // assert(("LLM Model not loaded!", _infer_request != nullptr));
-    // assert(("Tokenizer not loaded!", _tokenizer != nullptr));
+    assert(("LLM Model not loaded!", _infer_request != nullptr));
+    assert(("Tokenizer not loaded!", _tokenizer != nullptr));
     if (_verbose)
     {
-      std::cout << "\n[OpenVINO Backend API Interface] non-stream generate called\n";
+      std::cout << "\n[OpenVINO Backend API Interface] non-stream generation called\n";
     }
     if (_infer_request == nullptr)
     {
@@ -284,8 +283,11 @@ namespace openvino_backend
     return response;
   }
 
-  int32_t api_interface::generate_first_token(std::vector<int> &input_ids, const params &params)
+  // First token 推理
+  int32_t api_interface::generate_first_token(std::vector<int> &input_ids, const ov_params &params)
   {
+    assert(("LLM Model not loaded!", _infer_request != nullptr));
+    assert(("Tokenizer not loaded!", _tokenizer != nullptr));
     if (_infer_request == nullptr)
     {
       throw std::runtime_error("[OpenVINO Backend API Interface] Runtime Error: LLM Model not loaded!");
@@ -327,9 +329,12 @@ namespace openvino_backend
     int32_t output_token = get_out_token_id(input_ids, logits, _vocab_size, params);
     return output_token;
   }
-
-  int32_t api_interface::generate_next_token(int32_t input_token, std::vector<int32_t> history_ids, const params &params)
+  
+  // Second token 推理
+  int32_t api_interface::generate_next_token(int32_t input_token, std::vector<int32_t> history_ids, const ov_params &params)
   {
+    assert(("LLM Model not loaded!", _infer_request != nullptr));
+    assert(("Tokenizer not loaded!", _tokenizer != nullptr));
     if (_infer_request == nullptr)
     {
       throw std::runtime_error("[OpenVINO Backend API Interface] Runtime Error: LLM Model not loaded!");
@@ -365,6 +370,7 @@ namespace openvino_backend
       std::cout << "\n[OpenVINO Backend API Interface] reset called\n";
     }
     // Reset infer request internal state
+    assert(("LLM Model not loaded!", _infer_request != nullptr));
     if (_infer_request == nullptr)
     {
       throw std::runtime_error("[OpenVINO Backend API Interface] Runtime Error: LLM Model not loaded!");
@@ -401,7 +407,7 @@ namespace openvino_backend
     return true;
   }
 
-  // Unload tokenizer
+  // 卸载Tokenizer
   bool api_interface::api_unloadtokenizer()
   {
     if (_verbose)
@@ -470,11 +476,12 @@ namespace openvino_backend
       std::cout << "\n[OpenVINO Backend API Interface] stop generation called\n";
     }
     // Cancel infer request
-    auto startTime = Time::now();
+    assert(("LLM Model not loaded!", _infer_request != nullptr));
     if (_infer_request == nullptr)
     {
       throw std::runtime_error("[OpenVINO Backend API Interface] Runtime Error: LLM Model not loaded!");
     };
+    auto startTime = Time::now();
     _infer_request->cancel();
     _stop_generation = true;
     auto llm_cancel_duration = get_duration_ms_until_now(startTime);
@@ -487,10 +494,16 @@ namespace openvino_backend
 
     return true;
   }
-
+  
+  // 获取性能数据
   PerformanceStatistic api_interface::get_performance_statistics()
   {
     return _perf_statistic;
+  }
+
+  // 获取Tokenizer指针
+  std::shared_ptr<qwen::QwenTokenizer> api_interface::get_tokenzier(){
+    return _tokenizer;
   }
 
 } // namespace openvino_backend

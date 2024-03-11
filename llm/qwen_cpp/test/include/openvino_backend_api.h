@@ -1,11 +1,12 @@
-#include "openvino/openvino.hpp"
-#include <openvino/runtime/properties.hpp>
-#include "openvino/runtime/intel_gpu/properties.hpp"
+#include <algorithm>
 #include <chrono>
-#include "qwen.h"
 #include <functional>
 #include <numeric>
-#include <algorithm>
+
+#include "openvino/openvino.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
+#include "qwen.h"
 
 #if defined(_WIN32) || defined(__CYGWIN__)
 #define OPENVINO_CORE_IMPORTS __declspec(dllimport)
@@ -21,7 +22,7 @@
 #define _OPENVINO_HIDDEN_METHOD
 #endif
 
-struct params
+struct ov_params
 {
     std::string model_path = "Qwen-7B-Chat-NNCF_INT4\\openvino_model.xml";
     std::string tokenizer_path = "Qwen-7B-Chat-NNCF_INT4\\qwen.tiktoken";
@@ -69,38 +70,41 @@ namespace openvino_backend
         error = -1     // General error
     };
 
+    /*
+    // Example for callback function used in stream generation case
+    void callback(int32_t *new_token_id, bool *stop_generation)
+    {
+    if (!*stop_generation)
+    {
+        std::cout << *new_token_id << "\n";
+    }
+    }
+    */
+
     class api_interface
     {
-        /*
-        // Example for callback function used in stream generation case
-        void callback(int32_t *new_token_id, bool *stop_generation)
-        {
-            if (!*stop_generation)
-            {
-                std::cout << *new_token_id << "\n";
-            }
-        }
-        */
 
     public:
         // 参数初始化
-        OPENVINO_CORE_EXPORTS api_interface(const params &params);
+        OPENVINO_CORE_EXPORTS api_interface(const ov_params &params);
+
+        // 析构函数
         OPENVINO_CORE_EXPORTS ~api_interface();
 
         // 加载模型
         OPENVINO_CORE_EXPORTS void api_loadmodel(char *buffer, int thread_num);
 
-        // Load tokenizer with tokenizer path
+        // 通过路径加载Tokenizer
         OPENVINO_CORE_EXPORTS void api_loadtokenizer(std::string tokenizer_path);
 
-        // Load tokenizer passed with pointer
+        // 通过指针加载Tokenizer
         OPENVINO_CORE_EXPORTS void api_loadtokenizer(std::shared_ptr<qwen::QwenTokenizer> tokenizer_ptr);
 
-        // 流式接口
-        OPENVINO_CORE_EXPORTS bool api_Generate(const std::string &prompt, const params &params, void (*api_callback)(int32_t *new_token_id, bool *_stop_generation));
+        // 流式生成接口
+        OPENVINO_CORE_EXPORTS bool api_Generate(const std::string &prompt, const ov_params &params, void (*api_callback)(int32_t *new_token_id, bool *_stop_generation));
 
-        // 非流式接口 (Raw prompt)
-        OPENVINO_CORE_EXPORTS std::string api_Generate(const std::string &prompt, const params &params);
+        // 非流式生成接口
+        OPENVINO_CORE_EXPORTS std::string api_Generate(const std::string &prompt, const ov_params &params);
 
         // 环境复位
         OPENVINO_CORE_EXPORTS void api_Reset();
@@ -117,12 +121,17 @@ namespace openvino_backend
         // 停止生成
         OPENVINO_CORE_EXPORTS bool api_stop();
 
-        // Get performance statistic
+        // 获取性能数据
         OPENVINO_CORE_EXPORTS PerformanceStatistic get_performance_statistics();
 
-        int32_t generate_first_token(std::vector<int> &input_ids, const params &params);
+        // 获取Tokenizer指针
+        OPENVINO_CORE_EXPORTS std::shared_ptr<qwen::QwenTokenizer> get_tokenzier();
 
-        int32_t generate_next_token(int32_t input_token, std::vector<int32_t> history_ids, const params &params);
+        // First token 推理
+        int32_t generate_first_token(std::vector<int> &input_ids, const ov_params &params);
+
+        // Second token 推理
+        int32_t generate_next_token(int32_t input_token, std::vector<int32_t> history_ids, const ov_params &params);
 
     private:
         ov::Core _core;
