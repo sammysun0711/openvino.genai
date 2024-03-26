@@ -91,8 +91,11 @@ namespace openvino_backend
         // 析构函数
         OPENVINO_CORE_EXPORTS ~api_interface();
 
-        // 加载模型
+        // 通过本地路径加载模型
         OPENVINO_CORE_EXPORTS void api_loadmodel(char *buffer, int thread_num);
+
+        // 通过内存buffer加载模型
+        OPENVINO_CORE_EXPORTS void api_loadmodel(std::vector<uint8_t> *model_buffer, std::vector<uint8_t> *weight_buffer, int thread_num);
 
         // 通过路径加载Tokenizer
         OPENVINO_CORE_EXPORTS void api_loadtokenizer(std::string tokenizer_path);

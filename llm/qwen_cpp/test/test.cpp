@@ -1,8 +1,8 @@
 #include <chrono>
 #include <iostream>
+#include <fstream>
 #include <sstream>
 #include <thread>
-
 #include "openvino_backend_api.h"
 
 ov_params default_params;
@@ -19,6 +19,7 @@ void callback(int32_t *new_token_id, bool *stop_generation)
     {
         // std::cout << *new_token_id << "\n";
         text_streamer->put({*new_token_id});
+        // std::string content = tokenizer->decode({*new_token_id});
     }
 }
 void task1(const std::string &prompt, const ov_params &params, void (*api_callback)(int32_t *new_token_id, bool *_stop_generation))
@@ -32,6 +33,7 @@ int main()
     {
         std::string model_path = "Qwen-7B-Chat-NNCF_INT4\\openvino_model.xml";
         std::string user_prompt = "What is OpenVINO?";
+        // std::string user_prompt = "请介绍下清华大学";
         std::string system_message = "<|im_start|>system\nYou are a helpful assistant.<|im_end|>";
         std::ostringstream oss_prompt;
         oss_prompt << system_message << "\n<|im_start|>user\n"
@@ -43,7 +45,7 @@ int main()
         // 获取状态
         auto status = openvino_api_interface.api_status();
 
-        // 加载模型
+        // 通过本地路径加载模型
         openvino_api_interface.api_loadmodel(cstr, 0);
         status = openvino_api_interface.api_status();
 
@@ -52,7 +54,16 @@ int main()
         status = openvino_api_interface.api_status();
         std::cout << "Sleep 5s to check if GPU memory released after model unload\n";
         std::this_thread::sleep_for(std::chrono::milliseconds(5000));
-        openvino_api_interface.api_loadmodel(cstr, 0);
+
+        // 通过内存buffer加载模型
+        std::string encrypt_model_path = default_params.model_path;
+        std::string encrypt_weights_path = std::regex_replace(model_path, std::regex(".xml"), ".bin");
+        std::ifstream model_file(encrypt_model_path, std::ios::in | std::ios::binary);
+        std::ifstream weights_file(encrypt_weights_path, std::ios::in | std::ios::binary);
+        // User can add file decryption of model_file and weights_file in memory here
+        std::vector<uint8_t> model_buffer((std::istreambuf_iterator<char>(model_file)), std::istreambuf_iterator<char>());
+        std::vector<uint8_t> weights_buffer((std::istreambuf_iterator<char>(weights_file)), std::istreambuf_iterator<char>());
+        openvino_api_interface.api_loadmodel(&model_buffer, &weights_buffer, 0);
         status = openvino_api_interface.api_status();
 
         // 通过路径加载Tokenizer

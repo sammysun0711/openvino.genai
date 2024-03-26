@@ -111,7 +111,7 @@ namespace openvino_backend
     api_unloadtokenizer();
   }
 
-  // 加载模型
+  // 通过本地路径加载模型
   void api_interface::api_loadmodel(char *buffer, int thread_num)
   {
     if (_verbose)
@@ -119,9 +119,38 @@ namespace openvino_backend
       std::cout << "\n[OpenVINO Backend API Interface] load model called\n";
     }
     // Set number of compilation thread
-    _device_config[ov::compilation_num_threads.name()] = thread_num;
+    if (_device.find("GPU") != std::string::npos){
+        _device_config[ov::compilation_num_threads.name()] = thread_num;
+    }
     auto startTime = Time::now();
     _infer_request = std::make_unique<ov::InferRequest>(_core.compile_model(std::string(buffer), _device, _device_config).create_infer_request());
+    auto llm_load_duration = get_duration_ms_until_now(startTime);
+    if (_verbose)
+    {
+      std::cout << "Load llm took: " << llm_load_duration << " ms\n";
+    }
+    _perf_statistic.llm_load_duration = llm_load_duration;
+    _vocab_size = _infer_request->get_tensor("logits").get_shape().back();
+    _api_status = status::loaded;
+  }
+
+  // 通过内存buffer加载模型
+  void api_interface::api_loadmodel(std::vector<uint8_t> *model_buffer, std::vector<uint8_t> *weights_buffer, int thread_num)
+  {
+    if (_verbose)
+    {
+      std::cout << "\n[OpenVINO Backend API Interface] load model called\n";
+    }
+    // Set number of compilation thread
+    if (_device.find("GPU") != std::string::npos){
+        _device_config[ov::compilation_num_threads.name()] = thread_num;
+    }
+    auto startTime = Time::now();
+    std::string str_model(model_buffer->begin(), model_buffer->end());
+    _infer_request = std::make_unique<ov::InferRequest>(_core.compile_model(str_model,
+                                                                            ov::Tensor(ov::element::u8, {weights_buffer->size()}, weights_buffer->data()),
+                                                                            _device,
+                                                                            _device_config).create_infer_request());
     auto llm_load_duration = get_duration_ms_until_now(startTime);
     if (_verbose)
     {
@@ -329,7 +358,7 @@ namespace openvino_backend
     int32_t output_token = get_out_token_id(input_ids, logits, _vocab_size, params);
     return output_token;
   }
-  
+
   // Second token 推理
   int32_t api_interface::generate_next_token(int32_t input_token, std::vector<int32_t> history_ids, const ov_params &params)
   {
@@ -494,7 +523,7 @@ namespace openvino_backend
 
     return true;
   }
-  
+
   // 获取性能数据
   PerformanceStatistic api_interface::get_performance_statistics()
   {
@@ -502,7 +531,8 @@ namespace openvino_backend
   }
 
   // 获取Tokenizer指针
-  std::shared_ptr<qwen::QwenTokenizer> api_interface::get_tokenzier(){
+  std::shared_ptr<qwen::QwenTokenizer> api_interface::get_tokenzier()
+  {
     return _tokenizer;
   }
 
