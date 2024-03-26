@@ -127,7 +127,7 @@ namespace openvino_backend
     auto llm_load_duration = get_duration_ms_until_now(startTime);
     if (_verbose)
     {
-      std::cout << "Load llm took: " << llm_load_duration << " ms\n";
+      std::cout << "Load llm on " << _device << " took: " << llm_load_duration << " ms\n";
     }
     _perf_statistic.llm_load_duration = llm_load_duration;
     _vocab_size = _infer_request->get_tensor("logits").get_shape().back();
@@ -154,7 +154,7 @@ namespace openvino_backend
     auto llm_load_duration = get_duration_ms_until_now(startTime);
     if (_verbose)
     {
-      std::cout << "Load llm took: " << llm_load_duration << " ms\n";
+      std::cout << "Load llm on " << _device << " took: " << llm_load_duration << " ms\n";
     }
     _perf_statistic.llm_load_duration = llm_load_duration;
     _vocab_size = _infer_request->get_tensor("logits").get_shape().back();
