@@ -146,6 +146,16 @@ namespace openvino_backend
         _device_config[ov::compilation_num_threads.name()] = thread_num;
     }
     auto startTime = Time::now();
+    assert(("Model buffer is empty!", model_buffer->empty() == false));
+    assert(("Weights buffer is empty!", weights_buffer->empty() == false));
+    if (model_buffer->empty())
+    {
+      throw std::runtime_error("[OpenVINO Backend API Interface] Runtime Error: Model buffer is empty!");
+    };
+    if (weights_buffer->empty())
+    {
+      throw std::runtime_error("[OpenVINO Backend API Interface] Runtime Error: Weights buffer is empty!");
+    };
     std::string str_model(model_buffer->begin(), model_buffer->end());
     _infer_request = std::make_unique<ov::InferRequest>(_core.compile_model(str_model,
                                                                             ov::Tensor(ov::element::u8, {weights_buffer->size()}, weights_buffer->data()),
@@ -251,7 +261,7 @@ namespace openvino_backend
     _perf_statistic.llm_average_token_per_second = _perf_statistic.generated_token_num / _perf_statistic.llm_generate_next_token_duration * 1000.0;
     if (_verbose)
     {
-      std::cout << "Average next token generation speed: " << _perf_statistic.llm_average_token_per_second << " token per second.\n";
+      std::cout << "\nAverage next token generation speed: " << _perf_statistic.llm_average_token_per_second << " token per second.\n";
     }
     _api_status = status::loaded;
 
@@ -303,7 +313,7 @@ namespace openvino_backend
     _perf_statistic.llm_average_token_per_second = _perf_statistic.generated_token_num / _perf_statistic.llm_generate_next_token_duration * 1000.0;
     if (_verbose)
     {
-      std::cout << "Average next token generation speed: " << _perf_statistic.llm_average_token_per_second << " token per second.\n";
+      std::cout << "\nAverage next token generation speed: " << _perf_statistic.llm_average_token_per_second << " token per second.\n";
     }
 
     std::string response = _tokenizer->decode(output_ids);
