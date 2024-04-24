@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <openvino/openvino.hpp>
+#include "openvino/core/parallel.hpp"
+
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
 
@@ -149,9 +151,11 @@ void update_kv_cache(ov::InferRequest request, uint64_t seq_len_axis, uint64_t n
     float total_set_state_latency = 0.0;
     int kv_cache_num = 0;
     // trim kv_cache values up to the new_seq_len
+    auto states = request.query_state();
     for (auto& state : request.query_state()) {
         kv_cache_num += 1;
         auto startTime = Time::now();
+        //ov::Tensor old_tensor = state.get_state();
         ov::Tensor old_tensor = state.get_state();
         auto duration_ms = get_duration_ms_until_now(startTime);
         // std::cout << "\nGet state took: " << duration_ms << "ms\n";
@@ -178,6 +182,17 @@ void update_kv_cache(ov::InferRequest request, uint64_t seq_len_axis, uint64_t n
               << " ms, avg trimm tensor latency: " << total_trimm_tensor_latency / kv_cache_num << " ms.\n";
     std::cout << "Total set state latency: " << total_set_state_latency
               << " ms, avg set state latency: " << total_set_state_latency / kv_cache_num << " ms.\n";
+}
+
+void update_kv_cache_opt(ov::InferRequest request, uint64_t seq_len_axis, uint64_t new_seq_len) {
+    int kv_cache_num = 0;
+    // trim kv_cache values up to the new_seq_len
+    auto states = request.query_state();
+    //for (auto& state : request.query_state()) {
+    ov::parallel_for(states.size(), [&](size_t i) {
+        ov::Tensor old_tensor = states.at(i).get_state();
+        states.at(i).set_state(trimm_tensor_fast(old_tensor, seq_len_axis, new_seq_len));
+    });
 }
 
 class PromptLookupCandidateGenerator {
@@ -269,7 +284,6 @@ int main(int argc, char* argv[]) try {
     ov::InferRequest detokenizer =
         core.compile_model(model_dir + "/openvino_detokenizer.xml", "CPU").create_infer_request();
     TextStreamer text_streamer{std::move(detokenizer)};
-
     ov::InferRequest model = core.compile_model(model_dir + "/openvino_model.xml", "CPU").create_infer_request();
 
     model.set_tensor("input_ids", input_ids);
@@ -284,7 +298,7 @@ int main(int argc, char* argv[]) try {
     model.get_tensor("beam_idx").set_shape({BATCH_SIZE});
     model.get_tensor("beam_idx").data<int32_t>()[0] = 0;
 
-    // To coollect kv-cache for the <PROMPT> and to get the next token run the very first infer request
+    // To collect kv-cache for the <PROMPT> and to get the next token run the very first infer request
     model.infer();
 
     // logits shape is [BATCH_SIZE, seq_len, vocab_size]
@@ -366,7 +380,8 @@ int main(int argc, char* argv[]) try {
         std::cout << "Update kv cache from old kv cache with sequence length: " << full_input_ids.size()
                   << " to new kv cache with sequence length: " << seq_len << "\n";
         startTime = Time::now();
-        update_kv_cache(model, SEQ_LEN_AXIS, seq_len);
+        //update_kv_cache(model, SEQ_LEN_AXIS, seq_len);
+        update_kv_cache_opt(model, SEQ_LEN_AXIS, seq_len);
         duration_ms = get_duration_ms_until_now(startTime);
         std::cout << "Update kv cache took " << duration_ms << " ms\n";
 

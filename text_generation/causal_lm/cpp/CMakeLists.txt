@@ -3,7 +3,7 @@
 
 cmake_minimum_required(VERSION 3.15)
 project(causal_lm)
-
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 add_subdirectory(../../../thirdparty/openvino_tokenizers/ "${CMAKE_CURRENT_BINARY_DIR}/openvino_tokenizers/")
 
 add_executable(greedy_causal_lm greedy_causal_lm.cpp)
@@ -33,6 +33,13 @@ add_executable(prompt_lookup_decoding prompt_lookup_decoding.cpp)
 target_compile_definitions(prompt_lookup_decoding PRIVATE OPENVINO_TOKENIZERS_PATH=\"$<TARGET_FILE:openvino_tokenizers>\")
 target_include_directories(prompt_lookup_decoding PRIVATE ./)
 find_package(OpenVINO REQUIRED COMPONENTS Runtime)
-target_link_libraries(prompt_lookup_decoding PRIVATE openvino::runtime)
+#Option 1: works on windows OV package with tbb as 3rdparty
+#find_package(TBB REQUIRED)
+#target_link_libraries(prompt_lookup_decoding PRIVATE openvino::runtime TBB::tbb)
+
+#Option 2: works on linux OV package with no tbb as 3rdparty, manually define tbb path on linux,otherwise system tbb used, may have perf impact
+target_link_libraries(prompt_lookup_decoding PRIVATE openvino::runtime "/home/openvino/workspaces/tss/didi/gru_ov_cpu_mem_test/openvino/install/runtime/3rdparty/tbb/lib/libtbb.so")
+include_directories(PRIVATE "/home/openvino/workspaces/tss/didi/gru_ov_cpu_mem_test/openvino/install/runtime/3rdparty/tbb/include")
 set_target_properties(prompt_lookup_decoding PROPERTIES CXX_STANDARD 17)
 set_target_properties(prompt_lookup_decoding PROPERTIES CXX_STANDARD_REQUIRED ON)
+
