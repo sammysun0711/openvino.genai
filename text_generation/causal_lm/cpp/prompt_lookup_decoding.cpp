@@ -2,6 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <openvino/openvino.hpp>
+typedef std::chrono::high_resolution_clock Time;
+typedef std::chrono::nanoseconds ns;
+
+double get_duration_ms_until_now(Time::time_point& startTime) {
+    return std::chrono::duration_cast<ns>(Time::now() - startTime).count() * 0.000001;
+}
 
 namespace {
 
@@ -58,6 +64,40 @@ struct TextStreamer {
     }
 };
 
+ov::Tensor trimm_tensor_fast(ov::Tensor& tensor, uint64_t seq_len_axis, uint64_t new_seq_len) {
+    // Copy elements from the old to a new tensor and return it.
+    // It's assumed that key/values tensor has a shape [BATCH_SIZE, num_kv_heads, seq_len, head_size] or [seq_len, ...],
+    // It that's not the case for your model please implement your own trim method.
+    OPENVINO_ASSERT(seq_len_axis == 2 || seq_len_axis == 0,
+                    "Cannot trim key/values with sequence length axis = ",
+                    seq_len_axis);
+
+    auto old_tensor_data = tensor.data<float>();
+    auto shape = tensor.get_shape();
+    size_t batch_size = shape[0];
+    size_t num_kv_heads = shape[1];
+    size_t old_seq_len = shape[2];
+    size_t head_size = shape[3];
+
+    OPENVINO_ASSERT(new_seq_len <= old_seq_len);
+
+    // if new_seq_len equal to old one no need to copy tensor, return as is
+    if (old_seq_len == new_seq_len)
+        return tensor;
+
+    if (seq_len_axis == 0) {
+        shape[0] = new_seq_len;
+        tensor.set_shape(shape);
+        return tensor;
+    }
+
+    ov::Coordinate new_shape_begin{0, 0, 0, 0};
+    ov::Coordinate new_shape_end{batch_size, num_kv_heads, new_seq_len, head_size};
+    auto new_tensor = ov::Tensor(tensor, new_shape_begin, new_shape_end);
+
+    return new_tensor;
+}
+
 ov::Tensor trimm_tensor(ov::Tensor& tensor, uint64_t seq_len_axis, uint64_t new_seq_len) {
     // Copy elements from the old to a new tensor and return it.
     // It's assumed that key/values tensor has a shape [BATCH_SIZE, num_kv_heads, seq_len, head_size] or [seq_len, ...],
@@ -82,6 +122,7 @@ ov::Tensor trimm_tensor(ov::Tensor& tensor, uint64_t seq_len_axis, uint64_t new_
     if (seq_len_axis == 0) {
         shape[0] = new_seq_len;
         tensor.set_shape(shape);
+        return tensor;
     }
 
     // if seq_len_axis == 2, then data is not contiguous, in order to trim need to repack tensor
@@ -98,15 +139,45 @@ ov::Tensor trimm_tensor(ov::Tensor& tensor, uint64_t seq_len_axis, uint64_t new_
             }
         }
     }
+
     return new_tensor;
 }
 
 void update_kv_cache(ov::InferRequest request, uint64_t seq_len_axis, uint64_t new_seq_len) {
+    float total_get_state_latency = 0.0;
+    float total_trimm_tensor_latency = 0.0;
+    float total_set_state_latency = 0.0;
+    int kv_cache_num = 0;
     // trim kv_cache values up to the new_seq_len
     for (auto& state : request.query_state()) {
+        kv_cache_num += 1;
+        auto startTime = Time::now();
         ov::Tensor old_tensor = state.get_state();
-        state.set_state(trimm_tensor(old_tensor, seq_len_axis, new_seq_len));
+        auto duration_ms = get_duration_ms_until_now(startTime);
+        // std::cout << "\nGet state took: " << duration_ms << "ms\n";
+        total_get_state_latency += duration_ms;
+
+        startTime = Time::now();
+        // ov::Tensor new_tensor = trimm_tensor(old_tensor, seq_len_axis, new_seq_len);
+        ov::Tensor new_tensor = trimm_tensor_fast(old_tensor, seq_len_axis, new_seq_len);
+        duration_ms = get_duration_ms_until_now(startTime);
+        // std::cout << "Trimm tensor took: " << duration_ms << "ms\n";
+        total_trimm_tensor_latency += duration_ms;
+
+        startTime = Time::now();
+        state.set_state(new_tensor);
+        duration_ms = get_duration_ms_until_now(startTime);
+        // std::cout << "Set state took: " << duration_ms << "ms\n";
+        // state.set_state(trimm_tensor_new(old_tensor, seq_len_axis, new_seq_len));
+        total_set_state_latency += duration_ms;
     }
+    std::cout << "Total number kv cache state updated: " << kv_cache_num << "\n";
+    std::cout << "Total get state latency: " << total_get_state_latency
+              << " ms, avg get state latency: " << total_get_state_latency / kv_cache_num << " ms.\n";
+    std::cout << "Total trimm tensor latency: " << total_trimm_tensor_latency
+              << " ms, avg trimm tensor latency: " << total_trimm_tensor_latency / kv_cache_num << " ms.\n";
+    std::cout << "Total set state latency: " << total_set_state_latency
+              << " ms, avg set state latency: " << total_set_state_latency / kv_cache_num << " ms.\n";
 }
 
 class PromptLookupCandidateGenerator {
@@ -225,7 +296,7 @@ int main(int argc, char* argv[]) try {
     full_input_ids.push_back(out_token);
 
     auto first_token = out_token;
-    text_streamer.put(out_token);
+    // text_streamer.put(out_token);
 
     const int64_t EOS_TOKEN = get_eos_token(tokenizer_model);
 
@@ -251,7 +322,11 @@ int main(int argc, char* argv[]) try {
         position_ids.set_shape({BATCH_SIZE, K + 1});
         std::iota(position_ids.data<int64_t>(), position_ids.data<int64_t>() + position_ids.get_size(), seq_len);
 
+        auto startTime = Time::now();
         model.infer();
+        auto duration_ms = get_duration_ms_until_now(startTime);
+        std::cout << "\nLLM second infer with [" << BATCH_SIZE << ", " << K << "], latency: " << duration_ms << " ms"
+                  << std::endl;
 
         data_logits = logits.data<float>();  // [BATCH_SIZE, 1 + K, vocab_size]
 
@@ -270,7 +345,7 @@ int main(int argc, char* argv[]) try {
                 break;
             }
 
-            text_streamer.put(candidate_out_token);
+            // text_streamer.put(candidate_out_token);
             full_input_ids.push_back(candidate_out_token);
             accepted_tokens_number++;
 
@@ -287,9 +362,16 @@ int main(int argc, char* argv[]) try {
         // Increment the sequence length by the number of matched tokens, and
         // trim the KV cache to match the new sequence length.
         seq_len += accepted_tokens_number;
+
+        std::cout << "Update kv cache from old kv cache with sequence length: " << full_input_ids.size()
+                  << " to new kv cache with sequence length: " << seq_len << "\n";
+        startTime = Time::now();
         update_kv_cache(model, SEQ_LEN_AXIS, seq_len);
+        duration_ms = get_duration_ms_until_now(startTime);
+        std::cout << "Update kv cache took " << duration_ms << " ms\n";
 
         first_token = out_token;
+        break;
     }
 
     text_streamer.end();
@@ -306,3 +388,4 @@ int main(int argc, char* argv[]) try {
     std::cerr << "Non-exception object thrown\n";
     return EXIT_FAILURE;
 }
+
