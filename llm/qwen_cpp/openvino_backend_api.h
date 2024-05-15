@@ -24,8 +24,8 @@
 
 struct ov_params
 {
-    std::string model_path = "Qwen-7B-Chat-NNCF_INT4\\openvino_model.xml";
-    std::string tokenizer_path = "Qwen-7B-Chat-NNCF_INT4\\qwen.tiktoken";
+    std::string model_path = "Qwen-7B-Chat-NNCF_INT4/openvino_model.xml";
+    std::string tokenizer_path = "Qwen-7B-Chat-NNCF_INT4/qwen.tiktoken";
     int32_t n_ctx = 2048;
     int32_t n_predict = 512;
     bool do_sample = true;
@@ -36,7 +36,7 @@ struct ov_params
     int32_t repeat_last_n = 32;
     int32_t seed = -1;
     std::string model_cache_dir = "openvino_cache";
-    std::string device = "GPU";
+    std::string device = "CPU";
     bool verbose = true;
 };
 
@@ -138,7 +138,7 @@ namespace openvino_backend
 
     private:
         ov::Core _core;
-        std::string _device = "GPU";
+        std::string _device = "CPU";
         const size_t BATCH_SIZE = 1;
         std::string _model_cache_dir = "openvino_model_cache";
         std::unique_ptr<ov::InferRequest> _infer_request = nullptr;
