@@ -439,6 +439,7 @@ int main(int argc, char **argv)
       device_config[ov::intel_gpu::hint::host_task_priority.name()] = ov::hint::Priority::HIGH;
       device_config[ov::hint::enable_cpu_pinning.name()] = true;
       device_config[ov::enable_profiling.name()] = false;
+      device_config[ov::intel_gpu::hint::enable_sdpa_optimization.name()] = true;
     }
     constexpr size_t BATCH_SIZE = 1;
     // Model preparation, apply graph optimization on base model
