@@ -406,7 +406,31 @@ int main(int argc, char **argv)
     Args args = parse_args(argc, argv);
     qwen::QwenConfig config;
     double total_time;
-
+    std::string file_path = "performance_test_case.txt";
+    std::cout << "Read file from disk: " << file_path << "\n";
+    std::ifstream inputFile(file_path);
+     // Check if the file is successfully opened 
+    if (!inputFile.is_open()) { 
+	std::cerr << "Error opening the file!" << std::endl; 
+        return 1; 
+    } 
+  
+    std::string line; // Declare a string variable to store each 
+                      // line of the file 
+  
+    // Read each line of the file and print it to the 
+    // standard output stream 
+    std::cout << "File Content: " << std::endl;
+    std::stringstream ss; 
+    while (getline(inputFile, line)) { 
+	    //std::cout << line << std::endl; // Print the current line 
+	    ss << line;
+    } 
+    std::string input_text = ss.str();
+    // Close the file 
+    inputFile.close();
+    std::cout << "Set input prompt as input text: " << input_text << "\n";
+    args.prompt = input_text;
     // Init Tokenizer
     auto startTime = Time::now();
     std::unique_ptr<qwen::QwenTokenizer> tokenizer = std::make_unique<qwen::QwenTokenizer>(args.tiktoken_path, config);
