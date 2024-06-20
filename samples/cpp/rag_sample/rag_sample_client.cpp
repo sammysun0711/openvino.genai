@@ -1,5 +1,5 @@
 #include <unistd.h>
-
+#include <filesystem>
 #include "httplib.h"
 #include "iostream"
 #include "json.hpp"
@@ -12,8 +12,10 @@ static auto usage() -> void {
               << "  help     \n"
               << "  init_embeddings     \n"
               << "  embeddings          \n"
+              << "  embeddings_unload          \n"
               << "  llm_init            \n"
               << "  llm         \n"
+              << "  llm_unload            \n"
               << "  exit         \n";
 }
 
@@ -51,8 +53,8 @@ int main() {
             }
         } else if (command == "embeddings") {
             std::cout << "load json\n";
-            std::ifstream f("../../../../samples/cpp/rag_sample/"
-                            "document_data.json");
+
+            std::ifstream f("../../../../samples/cpp/rag_sample/document_data.json");
             json data = json::parse(f);
             auto embeddings = cli.Post("/embeddings", data.dump(), "application/json");
             if (embeddings->status == 200) {
@@ -71,11 +73,13 @@ int main() {
         } else if (command == "llm") {
             std::string user_prompt;
             std::cout << "Enter your prompt: ";
-            while (std::cin >> command && command != "exit") {
+            while (true) {
                 getline(std::cin, user_prompt);
-
-                if (check_vaild_sentence(command + user_prompt)) {
-                    auto completions = cli.Post("/completions", command + user_prompt, "text/plain");
+                if (user_prompt.length() != 0) {
+                    if (user_prompt == "exit")
+                        break;
+                    auto completions = cli.Post("/completions", user_prompt, "text/plain");
+                    sleep(1);
                     if (completions->status == 200) {
                         std::cout << "completions->body: " << completions->body << "\n";
                     } else {
@@ -84,8 +88,23 @@ int main() {
                     std::cout << "Enter your prompt: ";
                 }
             }
+        } else if (command == "llm_unload") {
+            auto llm_init = cli.Post("/llm_unload", "", "");
+            if (llm_init->status == 200) {
+                std::cout << "Unload llm success\n";
+            } else {
+                std::cout << "Unload llm failed\n";
+            }
+        } else if (command == "embeddings_unload") {
+            auto llm_init = cli.Post("/embeddings_unload", "", "");
+            if (llm_init->status == 200) {
+                std::cout << "Unload embeddings success\n";
+            } else {
+                std::cout << "Unload embeddings failed\n";
+            }
+        }
 
-        } else {
+        else {
             std::cerr << "Unknown argument: " << std::endl;
             usage();
         }

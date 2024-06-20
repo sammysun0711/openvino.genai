@@ -28,14 +28,21 @@ private:
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_llm_init(
         std::shared_ptr<ov::genai::LLMPipeline>& llm_pointer_ref,
         util::Args args);
+
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_llm(
         std::shared_ptr<ov::genai::LLMPipeline>& llm_pointer_ref,
         util::Args args);
+
+    std::function<void(const httplib::Request&, httplib::Response&)> get_handle_llm_unload(
+        std::shared_ptr<ov::genai::LLMPipeline>& llm_pointer_ref);
 
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_embeddings_init(
         std::shared_ptr<Embeddings>& embedding_pointer_ref,
         util::Args args);
 
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_embeddings(
+        std::shared_ptr<Embeddings>& embedding_ref);
+
+    std::function<void(const httplib::Request&, httplib::Response&)> get_handle_embeddings_unload(
         std::shared_ptr<Embeddings>& embedding_ref);
 };

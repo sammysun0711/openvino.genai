@@ -39,10 +39,12 @@ int main(int argc, char** argv) try {
     std::shared_ptr<ov::genai::LLMPipeline> llm_pointer;
     auto handle_llm_init = handle_master.get_handle("llm_init", llm_pointer, args);
     auto handle_llm = handle_master.get_handle("llm", llm_pointer, args);
+    auto handle_llm_unload = handle_master.get_handle("llm_unload", llm_pointer, args);
 
     std::shared_ptr<Embeddings> embedding_pointer;
     auto handle_embeddings_init = handle_master.get_handle("embeddings_init", embedding_pointer, args);
-    auto handle_embeddings = handle_master.get_handle("embedding", embedding_pointer, args);
+    auto handle_embeddings = handle_master.get_handle("embeddings", embedding_pointer, args);
+    auto handle_embeddings_unload = handle_master.get_handle("handle_embeddings_unload", embedding_pointer, args);
 
     svr->Options(R"(.*)", [](const httplib::Request& req, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", req.get_header_value("Origin"));
@@ -54,7 +56,9 @@ int main(int argc, char** argv) try {
     // svr->Post ("/health",       handle_health);
     svr->Post("/embeddings_init", handle_embeddings_init);
     svr->Post("/embeddings", handle_embeddings);
+    svr->Post("/embeddings_unload", handle_embeddings_unload);
     svr->Post("/llm_init", handle_llm_init);
+    svr->Post("/llm_unload", handle_llm_unload);
     svr->Post("/completions", handle_llm);
 
     svr->listen("0.0.0.0", 8080);

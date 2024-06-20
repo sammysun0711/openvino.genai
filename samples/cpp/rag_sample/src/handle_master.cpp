@@ -8,14 +8,18 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
     if (auto embedding_pointer = std::get_if<std::shared_ptr<Embeddings>>(&handle_type)) {
         if (handle_name == "embeddings_init") {
             return get_handle_embeddings_init(*embedding_pointer, args);
-        } else {
+        } else if (handle_name == "embeddings") {
             return get_handle_embeddings(*embedding_pointer);
+        } else {
+            return get_handle_embeddings_unload(*embedding_pointer);
         }
     } else if (auto llm_pointer = std::get_if<std::shared_ptr<ov::genai::LLMPipeline>>(&handle_type)) {
         if (handle_name == "llm_init") {
             return get_handle_llm_init(*llm_pointer, args);
-        } else {
+        } else if (handle_name == "llm") {
             return get_handle_llm(*llm_pointer, args);
+        } else {
+            return get_handle_llm_unload(*llm_pointer);
         }
     } else {
         std::cout << "handle_type is not supported, return void handle function\n";
@@ -28,6 +32,7 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
     util::Args args) {
     const auto handle_llm_init = [&llm_pointer_ref, args](const httplib::Request& req, httplib::Response& res) {
         llm_pointer_ref = std::make_shared<ov::genai::LLMPipeline>(args.llm_model_path, args.llm_device);
+        llm_pointer_ref->start_chat();
     };
     return handle_llm_init;
 }
@@ -41,14 +46,24 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
         std::string prompt = req_llm.body;
         auto config = llm_pointer_ref->get_generation_config();
         config.max_new_tokens = args.max_new_tokens;
-        llm_pointer_ref->start_chat();
+        // llm_pointer_ref->start_chat();
         std::string response = llm_pointer_ref->generate(prompt, config);
-        llm_pointer_ref->finish_chat();
+        std::cout << "response: " << response << "\n";
+        // llm_pointer_ref->finish_chat();
         // std::string processed_prompt = apply_chat_template(prompt);
         // std::cout << "processed_prompt: " << processed_prompt << "\n";
         res_llm.set_content(response, "text/plain");
     };
     return handle_llm;
+}
+
+std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_handle_llm_unload(
+    std::shared_ptr<ov::genai::LLMPipeline>& llm_pointer_ref) {
+    const auto handle_llm_unload = [&llm_pointer_ref](const httplib::Request& req, httplib::Response& res) {
+        llm_pointer_ref->finish_chat();
+        llm_pointer_ref.reset();
+    };
+    return handle_llm_unload;
 }
 
 std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_handle_embeddings_init(
@@ -78,4 +93,14 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
     };
 
     return handle_embeddings;
+}
+
+std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_handle_embeddings_unload(
+    std::shared_ptr<Embeddings>& embedding_pointer_ref) {
+    const auto handle_embeddings_unload = [&embedding_pointer_ref](const httplib::Request& req_embedding,
+                                                                       httplib::Response& res_embedding) {
+        embedding_pointer_ref.reset();
+    };
+
+    return handle_embeddings_unload;
 }
