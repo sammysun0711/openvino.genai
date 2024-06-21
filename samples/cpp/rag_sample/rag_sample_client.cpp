@@ -1,9 +1,16 @@
-#include <unistd.h>
 #include <filesystem>
 #include "httplib.h"
 #include "iostream"
 #include "json.hpp"
 using json = nlohmann::json;
+
+void custom_sleep(int seconds) {
+#ifdef _WIN32
+    Sleep(seconds * 1000);
+#else
+    sleep(seconds);
+#endif
+}
 
 static auto usage() -> void {
     std::cout << "Usage: " << " [options]\n"
@@ -20,7 +27,7 @@ static auto usage() -> void {
 }
 
 bool check_vaild_sentence(std::string sentence) {
-    if (sentence == "\n" and sentence[0] == '\n') {
+    if (sentence == "\n" && sentence[0] == '\n') {
         std::cout << "Invalid sentence\n";
         return false;
     }
@@ -79,7 +86,7 @@ int main() {
                     if (user_prompt == "exit")
                         break;
                     auto completions = cli.Post("/completions", user_prompt, "text/plain");
-                    sleep(1);
+                    custom_sleep(1);
                     if (completions->status == 200) {
                         std::cout << "completions->body: " << completions->body << "\n";
                     } else {

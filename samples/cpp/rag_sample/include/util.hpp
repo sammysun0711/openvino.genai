@@ -5,6 +5,18 @@
 #include <vector>
 #include "openvino/genai/llm_pipeline.hpp"
 
+#ifdef _WIN32
+std::string WideCharToUTF8(const std::wstring& wstr) {
+    if (wstr.empty())
+        return std::string();
+
+    int size_needed = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.size(), nullptr, 0, nullptr, nullptr);
+    std::string strTo(size_needed, 0);
+    WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.size(), &strTo[0], size_needed, nullptr, nullptr);
+    return strTo;
+}
+#endif
+
 class util {
 public:
     // struct LLMPipelineUtil {
@@ -95,9 +107,8 @@ public:
 #ifdef _WIN32
         LPWSTR* wargs = CommandLineToArgvW(GetCommandLineW(), &argc);
 
-        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
         for (int i = 0; i < argc; i++) {
-            argv_vec.emplace_back(converter.to_bytes(wargs[i]));
+            argv_vec.emplace_back(WideCharToUTF8(wargs[i]));
         }
 
         LocalFree(wargs);
