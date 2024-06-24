@@ -14,7 +14,8 @@
 #include "util.hpp"
 
 using json = nlohmann::json;
-
+std::shared_ptr<ov::genai::LLMPipeline> llm_pointer;
+std::shared_ptr<Embeddings> embedding_pointer;
 // (TODO)
 // 1. Add init llm pipeline function                                  - handle_init_llm
 // 2. Add init bert pipeline function                                 - handle_init_embedings
@@ -36,12 +37,12 @@ int main(int argc, char** argv) try {
 
     HandleMaster handle_master;
 
-    std::shared_ptr<ov::genai::LLMPipeline> llm_pointer;
+    
     auto handle_llm_init = handle_master.get_handle("llm_init", llm_pointer, args);
     auto handle_llm = handle_master.get_handle("llm", llm_pointer, args);
     auto handle_llm_unload = handle_master.get_handle("llm_unload", llm_pointer, args);
 
-    std::shared_ptr<Embeddings> embedding_pointer;
+    
     auto handle_embeddings_init = handle_master.get_handle("embeddings_init", embedding_pointer, args);
     auto handle_embeddings = handle_master.get_handle("embeddings", embedding_pointer, args);
     auto handle_embeddings_unload = handle_master.get_handle("handle_embeddings_unload", embedding_pointer, args);
@@ -61,7 +62,7 @@ int main(int argc, char** argv) try {
     svr->Post("/llm_unload", handle_llm_unload);
     svr->Post("/completions", handle_llm);
 
-    svr->listen("0.0.0.0", 8080);
+    svr->listen("127.0.0.1", 7890);
 } catch (const std::exception& error) {
     std::cerr << error.what() << '\n';
     return EXIT_FAILURE;

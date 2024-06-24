@@ -43,7 +43,7 @@ bool check_vaild_sentence(std::string sentence) {
 int main() {
     // HTTP
     std::cout << "Init client \n";
-    httplib::Client cli("http://0.0.0.0:8080");
+    httplib::Client cli("http://127.0.0.1:7890");
     cli.set_default_headers({{"Client", "openvino.genai.rag_sample"}});
     std::string command;
     std::cout << "Init client finished\n";
@@ -61,7 +61,7 @@ int main() {
         } else if (command == "embeddings") {
             std::cout << "load json\n";
 
-            std::ifstream f("../../../../samples/cpp/rag_sample/document_data.json");
+            std::ifstream f("C:/Users/openvino/ys/xiake_genai/openvino.genai/samples/cpp/rag_sample/document_data.json");
             json data = json::parse(f);
             auto embeddings = cli.Post("/embeddings", data.dump(), "application/json");
             if (embeddings->status == 200) {
