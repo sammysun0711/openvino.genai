@@ -7,18 +7,24 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
                                                                                           util::Args args) {
     if (auto embedding_pointer = std::get_if<std::shared_ptr<Embeddings>>(&handle_type)) {
         if (handle_name == "embeddings_init") {
+            std::cout << "get_handle_embeddings_init\n" << std::flush;
             return get_handle_embeddings_init(*embedding_pointer, args);
         } else if (handle_name == "embeddings") {
+            std::cout << "get_handle_embeddings\n" << std::flush;
             return get_handle_embeddings(*embedding_pointer);
         } else {
+            std::cout << "get_handle_embeddings_unload\n" << std::flush;
             return get_handle_embeddings_unload(*embedding_pointer);
         }
     } else if (auto llm_pointer = std::get_if<std::shared_ptr<ov::genai::LLMPipeline>>(&handle_type)) {
         if (handle_name == "llm_init") {
+            std::cout << "get_handle_llm_init\n" << std::flush;
             return get_handle_llm_init(*llm_pointer, args);
         } else if (handle_name == "llm") {
+            std::cout << "get_handle_llm\n" << std::flush;
             return get_handle_llm(*llm_pointer, args);
         } else {
+            std::cout << "get_handle_llm_unload\n" << std::flush;
             return get_handle_llm_unload(*llm_pointer);
         }
     } else {
@@ -60,8 +66,15 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
 std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_handle_llm_unload(
     std::shared_ptr<ov::genai::LLMPipeline>& llm_pointer_ref) {
     const auto handle_llm_unload = [&llm_pointer_ref](const httplib::Request& req, httplib::Response& res) {
-        llm_pointer_ref->finish_chat();
-        llm_pointer_ref.reset();
+        std::cout << "start_finish_chat\n" << std::flush;
+        if (llm_pointer_ref!=nullptr)
+        {
+            llm_pointer_ref->finish_chat();
+            std::cout << "finish_chat\n" << std::flush;
+            llm_pointer_ref = nullptr;
+        }
+        else std::cout << "invaild llm_pointer_ref\n" << std::flush;
+        
     };
     return handle_llm_unload;
 }
@@ -99,7 +112,7 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
     std::shared_ptr<Embeddings>& embedding_pointer_ref) {
     const auto handle_embeddings_unload = [&embedding_pointer_ref](const httplib::Request& req_embedding,
                                                                        httplib::Response& res_embedding) {
-        embedding_pointer_ref.reset();
+        embedding_pointer_ref = nullptr;
     };
 
     return handle_embeddings_unload;

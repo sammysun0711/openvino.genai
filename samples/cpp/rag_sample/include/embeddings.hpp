@@ -8,7 +8,6 @@
 #include <openvino/openvino.hpp>
 #include "json.hpp"   
 
-
 class Embeddings{
     public:
         Embeddings(std::string bert_path, std::string device);

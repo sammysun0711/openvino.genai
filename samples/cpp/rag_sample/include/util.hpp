@@ -7,10 +7,10 @@
 
 class util {
 public:
-    // struct LLMPipelineUtil {
-    //     std::shared_ptr<ov::genai::LLMPipeline> pipe_pointer;
-    //     ov::genai::GenerationConfig config;
-    // };
+    struct ServerContext {
+        std::shared_ptr<ov::genai::LLMPipeline> llm_pointer;
+        std::shared_ptr<Embeddings> embedding_pointer;
+    };
 
     struct Args {
         std::string llm_model_path = "";

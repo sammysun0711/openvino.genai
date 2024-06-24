@@ -38,6 +38,7 @@ int main() {
     std::cout << "Init client \n";
     httplib::Client cli("http://0.0.0.0:8080");
     cli.set_default_headers({{"Client", "openvino.genai.rag_sample"}});
+    usage();
     std::string command;
     std::cout << "Init client finished\n";
     bool status = true;

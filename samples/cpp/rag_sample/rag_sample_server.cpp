@@ -44,7 +44,7 @@ int main(int argc, char** argv) try {
     std::shared_ptr<Embeddings> embedding_pointer;
     auto handle_embeddings_init = handle_master.get_handle("embeddings_init", embedding_pointer, args);
     auto handle_embeddings = handle_master.get_handle("embeddings", embedding_pointer, args);
-    auto handle_embeddings_unload = handle_master.get_handle("handle_embeddings_unload", embedding_pointer, args);
+    auto handle_embeddings_unload = handle_master.get_handle("embeddings_unload", embedding_pointer, args);
 
     svr->Options(R"(.*)", [](const httplib::Request& req, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", req.get_header_value("Origin"));
