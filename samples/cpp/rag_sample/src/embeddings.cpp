@@ -1,10 +1,10 @@
 #include "embeddings.hpp"   
 
 
-Embeddings::Embeddings (std::string bert_path, std::string device){
+void Embeddings::init(std::string bert_path, std::string device) {
     std::string bert_model_path = (std::filesystem::path(bert_path) / "openvino_model.xml").string();
     std::string bert_tokenizer_path = (std::filesystem::path(bert_path) / "openvino_tokenizer.xml").string();
-    BATCH_SIZE = 1;
+    BATCH_SIZE =1;
     core.add_extension(OPENVINO_TOKENIZERS_PATH);  // OPENVINO_TOKENIZERS_PATH is defined in CMakeLists.txt
     //Read the tokenizer model information from the file to later get the runtime information
     embedding_model = core.compile_model(bert_model_path, device).create_infer_request();
@@ -18,17 +18,17 @@ Embeddings::Embeddings (std::string bert_path, std::string device){
 
 std::vector<ov::Tensor> Embeddings::tokenize(std::string prompt) {
     // constexpr size_t BATCH_SIZE = 1;
-    std::cout << "BATCH_SIZE" << BATCH_SIZE << std::endl << std::flush;
-    auto input_tensor = ov::Tensor{ov::element::string, {1}, &prompt};
-    std::cout << "input_tensor succ" << std::endl << std::flush;
-    std::cout << "prompt length: " << prompt.length() << std::endl;
-    std::cout << "prompt: " << prompt << std::endl;
-    auto shape = input_tensor.get_shape();
-    std::cout << "input tensor shape: [ ";
-    for(auto s: shape){
-        std::cout << s << " ";
-    }
-    std::cout << "]\n";
+    // std::cout << "BATCH_SIZE " << BATCH_SIZE << std::endl << std::flush;
+    auto input_tensor = ov::Tensor{ov::element::string, {BATCH_SIZE}, &prompt};
+    // std::cout << "input_tensor succ" << std::endl << std::flush;
+    // std::cout << "prompt length: " << prompt.length() << std::endl;
+    // std::cout << "prompt: " << prompt << std::endl;
+    // auto shape = input_tensor.get_shape();
+    // std::cout << "input tensor shape: [ ";
+    // for(auto s: shape){
+    //     std::cout << s << " ";
+    // }
+    // std::cout << "]\n";
 
     try
     {
@@ -38,10 +38,9 @@ std::vector<ov::Tensor> Embeddings::tokenize(std::string prompt) {
     {
         std::cerr << e.what() << '\n';
     }
-    std::cout << "set_input_tensor succ" << std::endl << std::flush;
+
     // tokenizer.set_input_tensor(input_tensor);
     tokenizer.infer();
-    std::cout << "infer succ" << std::endl << std::flush;
     return {tokenizer.get_tensor("input_ids"), tokenizer.get_tensor("attention_mask"), tokenizer.get_tensor("token_type_ids")};
 }
 
@@ -61,16 +60,6 @@ inline ov::Tensor Embeddings::padding_for_fixed_input_shape(ov::Tensor input, ov
     return padded_input;
 }
 
-
-void Embeddings::init(std::string bert_path , std::string bert_tokenizer_path, std::string device){
-    core.add_extension(OPENVINO_TOKENIZERS_PATH);  // OPENVINO_TOKENIZERS_PATH is defined in CMakeLists.txt
-    //Read the tokenizer model information from the file to later get the runtime information
-    embedding_model = core.compile_model(bert_path, device).create_infer_request();
-    std::cout << "Load embedding model successed\n";
-    // auto tokenizer_model = core.read_model(bert_tokenizer_path);
-    tokenizer = core.compile_model(bert_tokenizer_path, device).create_infer_request();
-    std::cout << "Load tokenizer model successed\n";
-}
 
 
 std::vector<std::vector<std::vector<float>>> Embeddings::encode_queries(std::vector<std::string> queries){

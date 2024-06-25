@@ -38,14 +38,19 @@ int main(int argc, char** argv) try {
     HandleMaster handle_master;
 
     
-    auto handle_llm_init = handle_master.get_handle("llm_init", llm_pointer, args);
-    auto handle_llm = handle_master.get_handle("llm", llm_pointer, args);
-    auto handle_llm_unload = handle_master.get_handle("llm_unload", llm_pointer, args);
-
+    // auto handle_llm_init = handle_master.get_handle("llm_init", llm_pointer, args);
+    // auto handle_llm = handle_master.get_handle("llm", llm_pointer, args);
+    // auto handle_llm_unload = handle_master.get_handle("llm_unload", llm_pointer, args);
+    auto handle_llm_init = handle_master.get_handle_llm_init(llm_pointer, args);
+    auto handle_llm = handle_master.get_handle_llm(llm_pointer, args);
+    auto handle_llm_unload = handle_master.get_handle_llm_unload(llm_pointer);
     
-    auto handle_embeddings_init = handle_master.get_handle("embeddings_init", embedding_pointer, args);
-    auto handle_embeddings = handle_master.get_handle("embeddings", embedding_pointer, args);
-    auto handle_embeddings_unload = handle_master.get_handle("handle_embeddings_unload", embedding_pointer, args);
+    // auto handle_embeddings_init = handle_master.get_handle("embeddings_init", embedding_pointer, args);
+    // auto handle_embeddings = handle_master.get_handle("embeddings", embedding_pointer, args);
+    // auto handle_embeddings_unload = handle_master.get_handle("handle_embeddings_unload", embedding_pointer, args);
+    auto handle_embeddings_init = handle_master.get_handle_embeddings_init(embedding_pointer, args);
+    auto handle_embeddings = handle_master.get_handle_embeddings(embedding_pointer);
+    auto handle_embeddings_unload = handle_master.get_handle_embeddings_unload(embedding_pointer);
 
     svr->Options(R"(.*)", [](const httplib::Request& req, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", req.get_header_value("Origin"));

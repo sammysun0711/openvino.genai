@@ -14,17 +14,17 @@ class Embeddings{
         ov::Core core;
         ov::InferRequest embedding_model;
         ov::InferRequest tokenizer;
-        int BATCH_SIZE = 1;
+        size_t BATCH_SIZE;
 
-        Embeddings(std::string bert_path, std::string device);
+        Embeddings() = default;
         ~Embeddings() = default;
 
 
-        void init(std::string bert_path , std::string bert_tokenizer_path, std::string device);
+        void init(std::string bert_path, std::string device);
         std::vector<std::vector<std::vector<float>>> encode_queries(std::vector<std::string> queries);
 
     private:
-    
+        
         
         std::vector<std::vector<float>> encode_query(std::string query);
         std::vector<ov::Tensor> tokenize(std::string prompt);

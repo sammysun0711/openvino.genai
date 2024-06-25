@@ -71,7 +71,8 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
     util::Args args) {
     const auto handle_embeddings_init = [&embedding_pointer_ref, args](const httplib::Request& req_embedding,
                                                                        httplib::Response& res_embedding) {
-        embedding_pointer_ref = std::make_shared<Embeddings>(args.embedding_model_path, args.embedding_device);
+        embedding_pointer_ref = std::make_shared<Embeddings>();
+        embedding_pointer_ref->init(args.embedding_model_path, args.embedding_device);
     };
 
     return handle_embeddings_init;
@@ -103,4 +104,26 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
     };
 
     return handle_embeddings_unload;
+}
+
+
+std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_test_init(
+    std::shared_ptr<Test>& test) {
+       const auto test_init = [&test](const httplib::Request& req_embedding,
+                                                    httplib::Response& res_embedding) {
+        test = std::make_shared<Test>();
+        test->init(1,2);
+    };
+
+    return test_init;
+}
+
+std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_test(
+    std::shared_ptr<Test>& test) {
+    const auto test_handler = [&test](const httplib::Request& req_embedding,
+                                                    httplib::Response& res_embedding) {
+        test->printA();
+        test->printB();
+    };
+    return test_handler;
 }

@@ -24,7 +24,13 @@ public:
                                                                                 HandleInput handle_type,
                                                                                 util::Args args);
 
-private:
+    std::function<void(const httplib::Request&, httplib::Response&)> get_test_init(
+    std::shared_ptr<Test>& test);
+
+    std::function<void(const httplib::Request&, httplib::Response&)> get_test(
+    std::shared_ptr<Test>& test);
+
+// private:
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_llm_init(
         std::shared_ptr<ov::genai::LLMPipeline>& llm_pointer_ref,
         util::Args args);
@@ -45,4 +51,6 @@ private:
 
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_embeddings_unload(
         std::shared_ptr<Embeddings>& embedding_ref);
+
+
 };
