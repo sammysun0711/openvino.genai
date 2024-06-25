@@ -107,23 +107,3 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
 }
 
 
-std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_test_init(
-    std::shared_ptr<Test>& test) {
-       const auto test_init = [&test](const httplib::Request& req_embedding,
-                                                    httplib::Response& res_embedding) {
-        test = std::make_shared<Test>();
-        test->init(1,2);
-    };
-
-    return test_init;
-}
-
-std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_test(
-    std::shared_ptr<Test>& test) {
-    const auto test_handler = [&test](const httplib::Request& req_embedding,
-                                                    httplib::Response& res_embedding) {
-        test->printA();
-        test->printB();
-    };
-    return test_handler;
-}
