@@ -1,9 +1,12 @@
-#pragma once
+#ifndef _UTIL
+#define _UTIL
 
 #include <iostream>
 #include <sstream>
 #include <vector>
 #include "openvino/genai/llm_pipeline.hpp"
+#include "embeddings.hpp"
+#include "state.hpp"
 
 #ifdef _WIN32
 #include "windows.h"
@@ -12,10 +15,15 @@
 
 class util {
 public:
-    // struct LLMPipelineUtil {
-    //     std::shared_ptr<ov::genai::LLMPipeline> pipe_pointer;
-    //     ov::genai::GenerationConfig config;
-    // };
+
+    struct ServerContest {
+        std::shared_ptr<ov::genai::LLMPipeline> llm_pointer;
+        std::shared_ptr<Embeddings> embedding_pointer;
+
+        State server_state = State::STOPPED;
+        State embedding_state = State::STOPPED;
+        State llm_state = State::STOPPED;
+    };
 
     struct Args {
         std::string llm_model_path = "";
@@ -116,3 +124,5 @@ public:
         return parse_args(argv_vec);
     }
 };
+
+#endif

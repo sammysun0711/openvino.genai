@@ -13,8 +13,12 @@ void Embeddings::init(std::string bert_path, std::string device) {
     tokenizer = core.compile_model(bert_tokenizer_path, device).create_infer_request();
     std::cout << "Load tokenizer model successed\n";
     std::cout << "Init embedding models successed\n";
+    state = State::IDLE;
 }
 
+State Embeddings::get_state(){
+    return state;
+}
 
 std::vector<ov::Tensor> Embeddings::tokenize(std::string prompt) {
     // constexpr size_t BATCH_SIZE = 1;
@@ -63,6 +67,7 @@ inline ov::Tensor Embeddings::padding_for_fixed_input_shape(ov::Tensor input, ov
 
 
 std::vector<std::vector<std::vector<float>>> Embeddings::encode_queries(std::vector<std::string> queries){
+    state = State::RUNNING;
     std::cout << "size of queries: " << queries.size() << std::endl;
     std::vector<std::vector<std::vector<float>>> embedding_results;
     for(auto query: queries){
@@ -73,6 +78,7 @@ std::vector<std::vector<std::vector<float>>> Embeddings::encode_queries(std::vec
     std::cout << "size of embedding_results0: " << embedding_results[0].size() << std::endl;
     std::cout << "size of embedding_results00: " << embedding_results[0][0].size() << std::endl;
     std::cout << "embedding infer successed\n";
+    state = State::IDLE;
     return embedding_results;
 }
 

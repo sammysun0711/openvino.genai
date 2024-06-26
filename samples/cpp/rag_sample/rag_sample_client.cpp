@@ -23,6 +23,7 @@ static auto usage() -> void {
               << "  llm_init            \n"
               << "  llm         \n"
               << "  llm_unload            \n"
+              << "  health_cheak            \n"
               << "  exit         \n";
 }
 
@@ -59,6 +60,7 @@ int main() {
         } else if (command == "init_embeddings") {
             auto init_embeddings = cli.Post("/embeddings_init", "", "");
             if (init_embeddings->status == 200) {
+                std::cout << init_embeddings->body << "\n";
                 std::cout << "Init embeddings success\n";
             } else {
                 std::cout << "Init embeddings failed\n";
@@ -70,6 +72,7 @@ int main() {
             json data = json::parse(f);
             auto embeddings = cli.Post("/embeddings", data.dump(), "application/json");
             if (embeddings->status == 200) {
+                std::cout << embeddings->body << "\n";
                 std::cout << "Embeddings success\n";
             } else {
                 std::cout << "Embeddings failed\n";
@@ -113,6 +116,13 @@ int main() {
                 std::cout << "Unload embeddings success\n";
             } else {
                 std::cout << "Unload embeddings failed\n";
+            }
+        } else if (command == "health_cheak") {
+            auto health = cli.Post("/health", "", "");
+            if (health->status == 200) {
+                std::cout << "health: " << health->body << "\n";
+            } else {
+                std::cout << "health_cheak failed\n";
             }
         }
 
