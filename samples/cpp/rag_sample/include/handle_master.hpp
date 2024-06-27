@@ -1,4 +1,5 @@
-#pragma once
+#ifndef _HANDLE_MASTER
+#define _HANDLE_MASTER
 
 #include <chrono>
 #include <fstream>
@@ -11,6 +12,7 @@
 #include "httplib.h"
 #include "json.hpp"
 #include "util.hpp"
+#include "state.hpp"
 
 using json = nlohmann::json;
 using HandleInput = std::variant<int, std::shared_ptr<Embeddings>, std::shared_ptr<ov::genai::LLMPipeline>>;
@@ -20,29 +22,28 @@ public:
     HandleMaster() = default;
     ~HandleMaster() = default;
 
-    std::function<void(const httplib::Request&, httplib::Response&)> get_handle(std::string handle_name,
-                                                                                HandleInput handle_type,
-                                                                                util::Args args);
-
-private:
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_llm_init(
-        std::shared_ptr<ov::genai::LLMPipeline>& llm_pointer_ref,
-        util::Args args);
+        util::ServerContext& server_context_ref);
 
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_llm(
-        std::shared_ptr<ov::genai::LLMPipeline>& llm_pointer_ref,
-        util::Args args);
+        util::ServerContext& server_context_ref);
 
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_llm_unload(
-        std::shared_ptr<ov::genai::LLMPipeline>& llm_pointer_ref);
+        util::ServerContext& server_context_ref);
 
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_embeddings_init(
-        std::shared_ptr<Embeddings>& embedding_pointer_ref,
-        util::Args args);
+        util::ServerContext& server_context_ref);
 
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_embeddings(
-        std::shared_ptr<Embeddings>& embedding_ref);
+        util::ServerContext& server_context_ref);
 
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_embeddings_unload(
-        std::shared_ptr<Embeddings>& embedding_ref);
+        util::ServerContext& server_context_ref);
+
+    std::function<void(const httplib::Request&, httplib::Response&)> get_handle_health(
+        util::ServerContext& server_context_ref);
+
+
 };
+
+#endif

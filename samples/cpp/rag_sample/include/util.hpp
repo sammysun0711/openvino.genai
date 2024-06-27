@@ -1,16 +1,20 @@
-#pragma once
+#ifndef _UTIL
+#define _UTIL
 
 #include <iostream>
 #include <sstream>
 #include <vector>
 #include "openvino/genai/llm_pipeline.hpp"
+#include "embeddings.hpp"
+#include "state.hpp"
+
+#ifdef _WIN32
+#include "windows.h"
+#include <codecvt>
+#endif
 
 class util {
 public:
-    struct ServerContext {
-        std::shared_ptr<ov::genai::LLMPipeline> llm_pointer;
-        std::shared_ptr<Embeddings> embedding_pointer;
-    };
 
     struct Args {
         std::string llm_model_path = "";
@@ -25,6 +29,19 @@ public:
         float repeat_penalty = 1.0;
         bool verbose = false;
     };
+
+    struct ServerContext {
+        std::shared_ptr<ov::genai::LLMPipeline> llm_pointer;
+        std::shared_ptr<Embeddings> embedding_pointer;
+        util::Args args;
+
+        State server_state = State::STOPPED;
+        State embedding_state = State::STOPPED;
+        State llm_state = State::STOPPED;
+
+        ServerContext(Args arg_): args(arg_){}
+    };
+
     static auto usage(const std::string& prog) -> void {
         std::cout
             << "Usage: " << prog << " [options]\n"
@@ -92,6 +109,7 @@ public:
         std::vector<std::string> argv_vec;
         argv_vec.reserve(argc);
 
+
 #ifdef _WIN32
         LPWSTR* wargs = CommandLineToArgvW(GetCommandLineW(), &argc);
 
@@ -101,7 +119,6 @@ public:
         }
 
         LocalFree(wargs);
-
 #else
         for (int i = 0; i < argc; i++) {
             argv_vec.emplace_back(argv[i]);
@@ -111,3 +128,5 @@ public:
         return parse_args(argv_vec);
     }
 };
+
+#endif

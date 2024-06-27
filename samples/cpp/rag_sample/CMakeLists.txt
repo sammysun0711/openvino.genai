@@ -19,24 +19,11 @@ else()
 endif()
 find_package(OpenVINO REQUIRED COMPONENTS Runtime)
 
-add_library(embeddings SHARED src/embeddings.cpp)
-target_link_libraries(embeddings PRIVATE openvino::genai)
-target_include_directories(embeddings PUBLIC include)
-target_compile_definitions(embeddings PRIVATE OPENVINO_TOKENIZERS_PATH="${OPENVINO_TOKENIZERS_PATH}")
 
-add_library(handle_master SHARED src/handle_master.cpp)
-target_link_libraries(handle_master PRIVATE openvino::genai)
-target_link_libraries(handle_master PRIVATE embeddings)
-target_include_directories(handle_master PUBLIC include)
-target_compile_definitions(handle_master PRIVATE OPENVINO_TOKENIZERS_PATH="${OPENVINO_TOKENIZERS_PATH}")
-
-add_executable(rag_sample_server rag_sample_server.cpp)
+add_executable(rag_sample_server rag_sample_server.cpp src/handle_master.cpp src/embeddings.cpp)
 add_executable(rag_sample_client rag_sample_client.cpp)
 
 target_link_libraries(rag_sample_server PRIVATE openvino::genai)
-target_link_libraries(rag_sample_server PRIVATE handle_master)
-target_link_libraries(rag_sample_server PRIVATE embeddings)
-
 
 target_compile_definitions(rag_sample_server PRIVATE OPENVINO_TOKENIZERS_PATH="${OPENVINO_TOKENIZERS_PATH}")
 

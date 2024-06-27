@@ -7,7 +7,6 @@
 #include <iostream>
 #include <sstream>
 
-#include "embeddings.hpp"
 #include "handle_master.hpp"
 #include "httplib.h"
 #include "json.hpp"
@@ -35,16 +34,17 @@ int main(int argc, char** argv) try {
     util::Args args = util::parse_args(argc, argv);
 
     HandleMaster handle_master;
+    util::ServerContext server_context(args);
 
-    std::shared_ptr<ov::genai::LLMPipeline> llm_pointer;
-    auto handle_llm_init = handle_master.get_handle("llm_init", llm_pointer, args);
-    auto handle_llm = handle_master.get_handle("llm", llm_pointer, args);
-    auto handle_llm_unload = handle_master.get_handle("llm_unload", llm_pointer, args);
+    auto handle_llm_init = handle_master.get_handle_llm_init(server_context);
+    auto handle_llm = handle_master.get_handle_llm(server_context);
+    auto handle_llm_unload = handle_master.get_handle_llm_unload(server_context);
+    
+    auto handle_embeddings_init = handle_master.get_handle_embeddings_init(server_context);
+    auto handle_embeddings = handle_master.get_handle_embeddings(server_context);
+    auto handle_embeddings_unload = handle_master.get_handle_embeddings_unload(server_context);
 
-    std::shared_ptr<Embeddings> embedding_pointer;
-    auto handle_embeddings_init = handle_master.get_handle("embeddings_init", embedding_pointer, args);
-    auto handle_embeddings = handle_master.get_handle("embeddings", embedding_pointer, args);
-    auto handle_embeddings_unload = handle_master.get_handle("embeddings_unload", embedding_pointer, args);
+    auto handle_health = handle_master.get_handle_health(server_context);
 
     svr->Options(R"(.*)", [](const httplib::Request& req, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", req.get_header_value("Origin"));
@@ -53,7 +53,7 @@ int main(int argc, char** argv) try {
         return res.set_content("", "application/json; charset=utf-8");
     });
 
-    // svr->Post ("/health",       handle_health);
+    svr->Post ("/health", handle_health);
     svr->Post("/embeddings_init", handle_embeddings_init);
     svr->Post("/embeddings", handle_embeddings);
     svr->Post("/embeddings_unload", handle_embeddings_unload);
@@ -61,7 +61,7 @@ int main(int argc, char** argv) try {
     svr->Post("/llm_unload", handle_llm_unload);
     svr->Post("/completions", handle_llm);
 
-    svr->listen("0.0.0.0", 8080);
+    svr->listen("127.0.0.1", 7890);
 } catch (const std::exception& error) {
     std::cerr << error.what() << '\n';
     return EXIT_FAILURE;

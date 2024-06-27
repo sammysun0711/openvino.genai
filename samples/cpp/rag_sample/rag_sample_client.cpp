@@ -1,9 +1,16 @@
-#include <unistd.h>
 #include <filesystem>
 #include "httplib.h"
 #include "iostream"
 #include "json.hpp"
 using json = nlohmann::json;
+
+void custom_sleep(int seconds) {
+#ifdef _WIN32
+    Sleep(seconds * 1000);
+#else
+    sleep(seconds);
+#endif
+}
 
 static auto usage() -> void {
     std::cout << "Usage: " << " [options]\n"
@@ -16,11 +23,12 @@ static auto usage() -> void {
               << "  llm_init            \n"
               << "  llm         \n"
               << "  llm_unload            \n"
+              << "  health_cheak            \n"
               << "  exit         \n";
 }
 
 bool check_vaild_sentence(std::string sentence) {
-    if (sentence == "\n" and sentence[0] == '\n') {
+    if (sentence == "\n" && sentence[0] == '\n') {
         std::cout << "Invalid sentence\n";
         return false;
     }
@@ -36,39 +44,47 @@ bool check_vaild_sentence(std::string sentence) {
 int main() {
     // HTTP
     std::cout << "Init client \n";
-    httplib::Client cli("http://0.0.0.0:8080");
+    httplib::Client cli("http://127.0.0.1:7890");
     cli.set_default_headers({{"Client", "openvino.genai.rag_sample"}});
     usage();
     std::string command;
     std::cout << "Init client finished\n";
+    usage();
     bool status = true;
+    cli.set_connection_timeout(30, 0); // 30 seconds
+    cli.set_read_timeout(20, 0); // 20 seconds
+    cli.set_write_timeout(5, 0); // 5 seconds
+
     while (std::cin >> command && command != "exit") {
         if (command == "help") {
             usage();
         } else if (command == "init_embeddings") {
             auto init_embeddings = cli.Post("/embeddings_init", "", "");
-            if (init_embeddings->status == 200) {
-                std::cout << "Init embeddings success\n";
+            if (init_embeddings->status == httplib::StatusCode::OK_200) {
+                std::cout << init_embeddings->body << "\n";
             } else {
                 std::cout << "Init embeddings failed\n";
+                std::cout << "Status: "<< httplib::status_message(init_embeddings->status) << std::endl;
             }
         } else if (command == "embeddings") {
             std::cout << "load json\n";
 
-            std::ifstream f("../../../../samples/cpp/rag_sample/document_data.json");
+            std::ifstream f("C:/Users/openvino/ys/xiake_genai/openvino.genai/samples/cpp/rag_sample/document_data.json");
             json data = json::parse(f);
             auto embeddings = cli.Post("/embeddings", data.dump(), "application/json");
-            if (embeddings->status == 200) {
-                std::cout << "Embeddings success\n";
+            if (embeddings->status == httplib::StatusCode::OK_200) {
+                std::cout << embeddings->body << "\n";
             } else {
                 std::cout << "Embeddings failed\n";
+                std::cout << "Status: "<< httplib::status_message(embeddings->status) << std::endl;
             }
         } else if (command == "llm_init") {
             auto llm_init = cli.Post("/llm_init", "", "");
-            if (llm_init->status == 200) {
-                std::cout << "Init llm success\n";
+            if (llm_init->status == httplib::StatusCode::OK_200) {
+                std::cout << llm_init->body << "\n";
             } else {
                 std::cout << "Init llm failed\n";
+                std::cout << "Status: "<< httplib::status_message(llm_init->status) << std::endl;
             }
 
         } else if (command == "llm") {
@@ -80,28 +96,40 @@ int main() {
                     if (user_prompt == "exit")
                         break;
                     auto completions = cli.Post("/completions", user_prompt, "text/plain");
-                    sleep(1);
-                    if (completions->status == 200) {
+                    custom_sleep(1);
+                    if (completions->status == httplib::StatusCode::OK_200) {
                         std::cout << "completions->body: " << completions->body << "\n";
                     } else {
                         std::cout << "Completions failed\n";
+                        std::cout << "Status: "<< httplib::status_message(completions->status) << std::endl;
                     }
                     std::cout << "Enter your prompt: ";
                 }
             }
         } else if (command == "llm_unload") {
-            auto llm_init = cli.Post("/llm_unload", "", "");
-            if (llm_init->status == 200) {
+            auto llm_unload = cli.Post("/llm_unload", "", "");
+            if (llm_unload->status == httplib::StatusCode::OK_200) {
                 std::cout << "Unload llm success\n";
             } else {
                 std::cout << "Unload llm failed\n";
+                std::cout << "Status: "<< httplib::status_message(llm_unload->status) << std::endl;
             }
         } else if (command == "embeddings_unload") {
-            auto llm_init = cli.Post("/embeddings_unload", "", "");
-            if (llm_init->status == 200) {
+            auto embeddings_unload = cli.Post("/embeddings_unload", "", "");
+            if (embeddings_unload->status == httplib::StatusCode::OK_200) {
                 std::cout << "Unload embeddings success\n";
             } else {
                 std::cout << "Unload embeddings failed\n";
+                std::cout << "Status: "<< httplib::status_message(embeddings_unload->status) << std::endl;
+
+            }
+        } else if (command == "health_cheak") {
+            auto health = cli.Post("/health", "", "");
+            if (health->status == httplib::StatusCode::OK_200) {
+                std::cout << "health: " << health->body << "\n";
+            } else {
+                std::cout << "health_cheak failed\n";
+                std::cout << "Status: "<< httplib::status_message(health->status) << std::endl;
             }
         }
 

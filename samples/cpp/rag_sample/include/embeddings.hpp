@@ -1,29 +1,34 @@
-#pragma once
+#ifndef _EMBEDDINGS
+#define _EMBEDDINGS
 
 #include <chrono>
 #include <iostream>
 #include <fstream>
 #include <sstream>
-
+#include <openvino/runtime/tensor.hpp>
 #include <openvino/openvino.hpp>
 #include "json.hpp"   
 
+#include "state.hpp"
+
 class Embeddings{
     public:
-        Embeddings(std::string bert_path, std::string device);
-        ~Embeddings() = default;
-
         ov::Core core;
-
         ov::InferRequest embedding_model;
         ov::InferRequest tokenizer;
+        size_t BATCH_SIZE;
+        State state;
 
-        void init(std::string bert_path , std::string bert_tokenizer_path, std::string device);
+        Embeddings() = default;
+        ~Embeddings() = default;
+
+
+        void init(std::string bert_path, std::string device);
         std::vector<std::vector<std::vector<float>>> encode_queries(std::vector<std::string> queries);
-
+        State get_state();
     private:
-    
-        size_t BATCH_SIZE = 1;
+        
+        
         std::vector<std::vector<float>> encode_query(std::string query);
         std::vector<ov::Tensor> tokenize(std::string prompt);
 
@@ -31,6 +36,6 @@ class Embeddings{
         inline ov::Tensor padding_for_fixed_input_shape(ov::Tensor input, ov::Shape shape);
 };
 
-
+#endif
 
 
