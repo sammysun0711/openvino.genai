@@ -8,6 +8,7 @@
 #include <openvino/runtime/tensor.hpp>
 #include <openvino/openvino.hpp>
 #include "json.hpp"   
+
 #include "state.hpp"
 
 class Embeddings{
