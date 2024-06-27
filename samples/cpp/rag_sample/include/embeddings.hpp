@@ -17,15 +17,13 @@ class Embeddings{
         ov::InferRequest embedding_model;
         ov::InferRequest tokenizer;
         size_t BATCH_SIZE;
-        State state;
 
         Embeddings() = default;
         ~Embeddings() = default;
 
-
         void init(std::string bert_path, std::string device);
         std::vector<std::vector<std::vector<float>>> encode_queries(std::vector<std::string> queries);
-        State get_state();
+
     private:
         
         

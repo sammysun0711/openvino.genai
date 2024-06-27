@@ -13,27 +13,11 @@ void Embeddings::init(std::string bert_path, std::string device) {
     tokenizer = core.compile_model(bert_tokenizer_path, device).create_infer_request();
     std::cout << "Load tokenizer model successed\n";
     std::cout << "Init embedding models successed\n";
-    state = State::IDLE;
 }
 
-State Embeddings::get_state(){
-    return state;
-}
 
 std::vector<ov::Tensor> Embeddings::tokenize(std::string prompt) {
-    // constexpr size_t BATCH_SIZE = 1;
-    // std::cout << "BATCH_SIZE " << BATCH_SIZE << std::endl << std::flush;
     auto input_tensor = ov::Tensor{ov::element::string, {BATCH_SIZE}, &prompt};
-    // std::cout << "input_tensor succ" << std::endl << std::flush;
-    // std::cout << "prompt length: " << prompt.length() << std::endl;
-    // std::cout << "prompt: " << prompt << std::endl;
-    // auto shape = input_tensor.get_shape();
-    // std::cout << "input tensor shape: [ ";
-    // for(auto s: shape){
-    //     std::cout << s << " ";
-    // }
-    // std::cout << "]\n";
-
     try
     {
         tokenizer.set_input_tensor(input_tensor);
@@ -67,7 +51,6 @@ inline ov::Tensor Embeddings::padding_for_fixed_input_shape(ov::Tensor input, ov
 
 
 std::vector<std::vector<std::vector<float>>> Embeddings::encode_queries(std::vector<std::string> queries){
-    state = State::RUNNING;
     std::cout << "size of queries: " << queries.size() << std::endl;
     std::vector<std::vector<std::vector<float>>> embedding_results;
     for(auto query: queries){
@@ -78,7 +61,6 @@ std::vector<std::vector<std::vector<float>>> Embeddings::encode_queries(std::vec
     std::cout << "size of embedding_results0: " << embedding_results[0].size() << std::endl;
     std::cout << "size of embedding_results00: " << embedding_results[0][0].size() << std::endl;
     std::cout << "embedding infer successed\n";
-    state = State::IDLE;
     return embedding_results;
 }
 
@@ -102,10 +84,7 @@ std::vector<std::vector<float>> Embeddings::encode_query(std::string query){
     embedding_model.set_tensor("input_ids", input_ids_padding);
     embedding_model.set_tensor("attention_mask", attention_mask_padding);
     embedding_model.set_tensor("token_type_ids", token_type_ids_padding);
-    // ov::Tensor token_type_ids = embedding_model.get_tensor("token_type_ids");
-    // token_type_ids.set_shape(input_ids.get_shape());
-    // std::iota(token_type_ids.data<int64_t>(), token_type_ids.data<int64_t>() + seq_len, 0);
-    // constexpr size_t BATCH_SIZE = 1;
+
     embedding_model.infer();
     auto res = embedding_model.get_tensor("last_hidden_state");
 

@@ -39,7 +39,7 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
         } else {
             res_llm.set_header("Access-Control-Allow-Origin", req_llm.get_header_value("Origin"));
             res_llm.set_content(
-                "Cannot do llm chat, cause llm inferrequest is now not avaiable, check the stats of llm.",
+                "Cannot do llm chat, cause llm inferrequest is now not initialized or busy, check the stats of llm.",
                 "text/plain");
         }
     };
@@ -96,7 +96,7 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
             res_embedding.set_content("Embeddings success", "text/plain");
         } else {
             res_embedding.set_header("Access-Control-Allow-Origin", req_embedding.get_header_value("Origin"));
-            res_embedding.set_content("Cannot do embeddings, cause embeddings inferrequest is now not avaiable, check "
+            res_embedding.set_content("Cannot do embeddings, cause embeddings inferrequest is now not initialized or busy, check "
                                       "the stats of embeddings.",
                                       "text/plain");
         }
