@@ -34,22 +34,17 @@ int main(int argc, char** argv) try {
     util::Args args = util::parse_args(argc, argv);
 
     HandleMaster handle_master;
-    util::ServerContest server_contest;
-    // auto handle_llm_init = handle_master.get_handle("llm_init", llm_pointer, args);
-    // auto handle_llm = handle_master.get_handle("llm", llm_pointer, args);
-    // auto handle_llm_unload = handle_master.get_handle("llm_unload", llm_pointer, args);
-    auto handle_llm_init = handle_master.get_handle_llm_init(server_contest, args);
-    auto handle_llm = handle_master.get_handle_llm(server_contest, args);
-    auto handle_llm_unload = handle_master.get_handle_llm_unload(server_contest);
-    
-    // auto handle_embeddings_init = handle_master.get_handle("embeddings_init", embedding_pointer, args);
-    // auto handle_embeddings = handle_master.get_handle("embeddings", embedding_pointer, args);
-    // auto handle_embeddings_unload = handle_master.get_handle("handle_embeddings_unload", embedding_pointer, args);
-    auto handle_embeddings_init = handle_master.get_handle_embeddings_init(server_contest, args);
-    auto handle_embeddings = handle_master.get_handle_embeddings(server_contest);
-    auto handle_embeddings_unload = handle_master.get_handle_embeddings_unload(server_contest);
+    util::ServerContext server_context(args);
 
-    auto handle_health = handle_master.get_handle_health(server_contest);
+    auto handle_llm_init = handle_master.get_handle_llm_init(server_context);
+    auto handle_llm = handle_master.get_handle_llm(server_context);
+    auto handle_llm_unload = handle_master.get_handle_llm_unload(server_context);
+    
+    auto handle_embeddings_init = handle_master.get_handle_embeddings_init(server_context);
+    auto handle_embeddings = handle_master.get_handle_embeddings(server_context);
+    auto handle_embeddings_unload = handle_master.get_handle_embeddings_unload(server_context);
+
+    auto handle_health = handle_master.get_handle_health(server_context);
 
     svr->Options(R"(.*)", [](const httplib::Request& req, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", req.get_header_value("Origin"));

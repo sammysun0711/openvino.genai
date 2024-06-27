@@ -16,15 +16,6 @@
 class util {
 public:
 
-    struct ServerContest {
-        std::shared_ptr<ov::genai::LLMPipeline> llm_pointer;
-        std::shared_ptr<Embeddings> embedding_pointer;
-
-        State server_state = State::STOPPED;
-        State embedding_state = State::STOPPED;
-        State llm_state = State::STOPPED;
-    };
-
     struct Args {
         std::string llm_model_path = "";
         std::string llm_device = "CPU";
@@ -38,6 +29,19 @@ public:
         float repeat_penalty = 1.0;
         bool verbose = false;
     };
+
+    struct ServerContext {
+        std::shared_ptr<ov::genai::LLMPipeline> llm_pointer;
+        std::shared_ptr<Embeddings> embedding_pointer;
+        util::Args args;
+
+        State server_state = State::STOPPED;
+        State embedding_state = State::STOPPED;
+        State llm_state = State::STOPPED;
+
+        ServerContext(Args arg_): args(arg_){}
+    };
+
     static auto usage(const std::string& prog) -> void {
         std::cout
             << "Usage: " << prog << " [options]\n"

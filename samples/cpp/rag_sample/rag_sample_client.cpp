@@ -59,11 +59,11 @@ int main() {
             usage();
         } else if (command == "init_embeddings") {
             auto init_embeddings = cli.Post("/embeddings_init", "", "");
-            if (init_embeddings->status == 200) {
+            if (init_embeddings->status == httplib::StatusCode::OK_200) {
                 std::cout << init_embeddings->body << "\n";
-                std::cout << "Init embeddings success\n";
             } else {
                 std::cout << "Init embeddings failed\n";
+                std::cout << "Status: "<< httplib::status_message(init_embeddings->status) << std::endl;
             }
         } else if (command == "embeddings") {
             std::cout << "load json\n";
@@ -71,18 +71,19 @@ int main() {
             std::ifstream f("C:/Users/openvino/ys/xiake_genai/openvino.genai/samples/cpp/rag_sample/document_data.json");
             json data = json::parse(f);
             auto embeddings = cli.Post("/embeddings", data.dump(), "application/json");
-            if (embeddings->status == 200) {
+            if (embeddings->status == httplib::StatusCode::OK_200) {
                 std::cout << embeddings->body << "\n";
-                std::cout << "Embeddings success\n";
             } else {
                 std::cout << "Embeddings failed\n";
+                std::cout << "Status: "<< httplib::status_message(embeddings->status) << std::endl;
             }
         } else if (command == "llm_init") {
             auto llm_init = cli.Post("/llm_init", "", "");
-            if (llm_init->status == 200) {
-                std::cout << "Init llm success\n";
+            if (llm_init->status == httplib::StatusCode::OK_200) {
+                std::cout << llm_init->body << "\n";
             } else {
                 std::cout << "Init llm failed\n";
+                std::cout << "Status: "<< httplib::status_message(llm_init->status) << std::endl;
             }
 
         } else if (command == "llm") {
@@ -95,34 +96,39 @@ int main() {
                         break;
                     auto completions = cli.Post("/completions", user_prompt, "text/plain");
                     custom_sleep(1);
-                    if (completions->status == 200) {
+                    if (completions->status == httplib::StatusCode::OK_200) {
                         std::cout << "completions->body: " << completions->body << "\n";
                     } else {
                         std::cout << "Completions failed\n";
+                        std::cout << "Status: "<< httplib::status_message(completions->status) << std::endl;
                     }
                     std::cout << "Enter your prompt: ";
                 }
             }
         } else if (command == "llm_unload") {
-            auto llm_init = cli.Post("/llm_unload", "", "");
-            if (llm_init->status == 200) {
+            auto llm_unload = cli.Post("/llm_unload", "", "");
+            if (llm_unload->status == httplib::StatusCode::OK_200) {
                 std::cout << "Unload llm success\n";
             } else {
                 std::cout << "Unload llm failed\n";
+                std::cout << "Status: "<< httplib::status_message(llm_unload->status) << std::endl;
             }
         } else if (command == "embeddings_unload") {
-            auto llm_init = cli.Post("/embeddings_unload", "", "");
-            if (llm_init->status == 200) {
+            auto embeddings_unload = cli.Post("/embeddings_unload", "", "");
+            if (embeddings_unload->status == httplib::StatusCode::OK_200) {
                 std::cout << "Unload embeddings success\n";
             } else {
                 std::cout << "Unload embeddings failed\n";
+                std::cout << "Status: "<< httplib::status_message(embeddings_unload->status) << std::endl;
+
             }
         } else if (command == "health_cheak") {
             auto health = cli.Post("/health", "", "");
-            if (health->status == 200) {
+            if (health->status == httplib::StatusCode::OK_200) {
                 std::cout << "health: " << health->body << "\n";
             } else {
                 std::cout << "health_cheak failed\n";
+                std::cout << "Status: "<< httplib::status_message(health->status) << std::endl;
             }
         }
 

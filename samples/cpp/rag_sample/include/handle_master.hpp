@@ -22,33 +22,26 @@ public:
     HandleMaster() = default;
     ~HandleMaster() = default;
 
-    // std::function<void(const httplib::Request&, httplib::Response&)> get_handle(std::string handle_name,
-    //                                                                             HandleInput handle_type,
-    //                                                                             util::Args args);
-
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_llm_init(
-        util::ServerContest& server_contest_ref,
-        util::Args args);
+        util::ServerContext& server_context_ref);
 
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_llm(
-        util::ServerContest& server_contest_ref,
-        util::Args args);
+        util::ServerContext& server_context_ref);
 
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_llm_unload(
-        util::ServerContest& server_contest_ref);
+        util::ServerContext& server_context_ref);
 
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_embeddings_init(
-        util::ServerContest& server_contest_ref,
-        util::Args args);
+        util::ServerContext& server_context_ref);
 
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_embeddings(
-        util::ServerContest& server_contest_ref);
+        util::ServerContext& server_context_ref);
 
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_embeddings_unload(
-        util::ServerContest& server_contest_ref);
+        util::ServerContext& server_context_ref);
 
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_health(
-        util::ServerContest& server_contest_ref);
+        util::ServerContext& server_context_ref);
 
 
 };
