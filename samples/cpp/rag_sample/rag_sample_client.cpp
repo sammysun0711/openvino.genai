@@ -68,7 +68,8 @@ int main() {
         } else if (command == "embeddings") {
             std::cout << "load json\n";
 
-            std::ifstream f("C:/Users/openvino/ys/xiake_genai/openvino.genai/samples/cpp/rag_sample/document_data.json");
+            // TODO: use parse_args to get json path from user
+            std::ifstream f("../../../../../samples/cpp/rag_sample/document_data.json");
             json data = json::parse(f);
             auto embeddings = cli.Post("/embeddings", data.dump(), "application/json");
             if (embeddings->status == httplib::StatusCode::OK_200) {

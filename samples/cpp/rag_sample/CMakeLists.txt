@@ -22,7 +22,8 @@ find_package(OpenVINO REQUIRED COMPONENTS Runtime)
 
 add_executable(rag_sample_server rag_sample_server.cpp src/handle_master.cpp src/embeddings.cpp)
 add_executable(rag_sample_client rag_sample_client.cpp)
-
+add_subdirectory(deps/libpqxx build-pqxx)
+target_link_libraries(rag_sample_server PRIVATE pqxx)
 target_link_libraries(rag_sample_server PRIVATE openvino::genai)
 
 target_compile_definitions(rag_sample_server PRIVATE OPENVINO_TOKENIZERS_PATH="${OPENVINO_TOKENIZERS_PATH}")

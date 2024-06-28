@@ -1,6 +1,6 @@
 from typing import List
 from langchain.text_splitter import CharacterTextSplitter, RecursiveCharacterTextSplitter, MarkdownTextSplitter
-from langchain.document_loaders import (
+from langchain_community.document_loaders import (
     CSVLoader,
     EverNoteLoader,
     PDFMinerLoader,
@@ -14,11 +14,9 @@ from langchain.document_loaders import (
 from langchain.prompts import PromptTemplate
 from langchain.docstore.document import Document
 import re
-
+import json
 import http.client
-
-
-
+import argparse
 
 class ChineseTextSplitter(CharacterTextSplitter):
     def __init__(self, pdf: bool = False, **kwargs):
@@ -39,14 +37,12 @@ class ChineseTextSplitter(CharacterTextSplitter):
                 sent_list.append(ele)
         return sent_list
 
-
 TEXT_SPLITERS = {
     "Character": CharacterTextSplitter,
     "RecursiveCharacter": RecursiveCharacterTextSplitter,
     "Markdown": MarkdownTextSplitter,
     "Chinese": ChineseTextSplitter,
 }
-
 
 LOADERS = {
     ".csv": (CSVLoader, {}),
@@ -62,8 +58,6 @@ LOADERS = {
     ".pptx": (UnstructuredPowerPointLoader, {}),
     ".txt": (TextLoader, {"encoding": "utf8"}),
 }
-
-
 
 
 def load_single_document(file_path: str) -> List[Document]:
@@ -104,35 +98,73 @@ def get_chunks(docs, spliter_name, chunk_size, chunk_overlap):
     )
 
     texts = text_splitter.split_documents(documents)
-    return texts
+
+    print("loader and spliter finished, len(chunks) is: ", len(texts))
+
+    page_content_list = []
+
+    for chunk in texts:
+        page_content = chunk.page_content
+        page_content_list.append(page_content)
+
+    print(f"get_chunks completed! Number of chunks: {len(page_content_list)}")
+
+    chunks_dict = {"data": page_content_list}  # Assuming sending chunks as JSON data
+    json_data = json.dumps(chunks_dict)
+    return json_data
 
 
-# RAG configs
-docs = ["README.md"]
-spliter = "Character" # ["Character", "RecursiveCharacter", "Markdown", "Chinese"]
-chunk_size = 1000
-chunk_overlap = 200
-# get chunks
-chunks = get_chunks(docs, spliter, chunk_size, chunk_overlap)
-print("get_chunks and len(chunks) is: ", len(chunks))
+def send_data_to_server(host, port, json_data):
+  try:
+    print("Init client \n")
 
-HOST = "localhost"
-PORT = 8080
+    conn = http.client.HTTPConnection(host, port, 30)
+    headers = {"Content-Type": "application/json"}  
+    conn.request("POST", "/embeddings_init")
+    response = conn.getresponse()
+    print("response.status: ", response.status)
+    if response.status == 200:
+        print(f"Server response: {response.read().decode('utf-8')}")
+    else:
+        print(f"Error: Server returned status code {response.status}")
 
-data_to_send = "This is some data to send to the server!"
+    # with open("C:/llm/LG/xiake_genai/openvino.genai/samples/cpp/rag_sample/document_data.json", "r") as f:
+    #     data = json.load(f)
+    #     # print(type(data))
+    #     # print("len is: ", len(data))
+    #     json_data = json.dumps(data)
 
-conn = http.client.HTTPConnection(HOST, PORT)
-conn.request("POST", "/", chunks, headers={"Content-Type": "text/plain"})
-response = conn.getresponse()
-
-if response.status == 200:
-  print(f"Server response: {response.read().decode('utf-8')}")
-else:
-  print(f"Error: Server returned status code {response.status}")
-
-conn.close()
-
+    conn.request("POST", "/embeddings", json_data, headers=headers)
+    response = conn.getresponse()
+    print("response.status: ", response.status)
+    if response.status == 200:
+        print(f"Server response: {response.read().decode('utf-8')}")
+    else:
+        print(f"Error: Server returned status code {response.status}")
+  finally:
+    conn.close()
 
 
+def main():
+    parser = argparse.ArgumentParser(description="Process documents and send data to server.")
+    parser.add_argument("--docs", nargs="+", required=True, default="test_document_README.md", help="List of documents to process (e.g., test_document_README.md)")
+    parser.add_argument("--spliter", choices=["Character", "RecursiveCharacter", "Markdown", "Chinese"], default="Character", help="Chunking method")
+    parser.add_argument("--chunk_size", type=int, default=1000, help="Chunk size for processing")
+    parser.add_argument("--chunk_overlap", type=int, default=200, help="Chunk overlap for smoother processing")
+    parser.add_argument("--host", default="127.0.0.1", help="Server host address")
+    parser.add_argument("--port", type=int, default=7890, help="Server port number")
+    args = parser.parse_args()
+
+    print("get chunks from document with langchain's loader and spliter")
+    # Get document chunks
+    json_data = get_chunks(args.docs, args.spliter, args.chunk_size, args.chunk_overlap)
+    # embeddings_init and embeddings
+    send_data_to_server(args.host, args.port, json_data)    
+  
+    print("finished connnection")   
+
+
+if __name__ == "__main__":
+  main()
 
 

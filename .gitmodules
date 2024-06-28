@@ -1,3 +1,6 @@
 [submodule "thirdparty/openvino_tokenizers"]
     path = thirdparty/openvino_tokenizers
     url = https://github.com/openvinotoolkit/openvino_tokenizers.git
+[submodule "samples/cpp/rag_sample/deps/libpqxx"]
+	path = samples/cpp/rag_sample/deps/libpqxx
+	url = https://github.com/jtv/libpqxx

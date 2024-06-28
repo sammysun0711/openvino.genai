@@ -12,6 +12,13 @@
 #include "json.hpp"
 #include "util.hpp"
 
+// pgvector-cpp
+#include <iostream>
+#include <pqxx/pqxx>
+#include "pqxx.hpp"
+#include <cassert>
+#include <optional>
+
 using json = nlohmann::json;
 
 // (TODO)
@@ -29,6 +36,20 @@ using json = nlohmann::json;
 int main(int argc, char** argv) try {
     std::unique_ptr<httplib::Server> svr;
     svr.reset(new httplib::Server());
+
+    // pgvector-cpp
+    std::cout << "start DB connection" << std::endl;
+
+    try {
+        pqxx::connection conn{"user=postgres host=localhost password=openvino port=5432 dbname=postgres"};
+        std::cout << "Connected to " << conn.dbname() << '\n';
+        std::cout << "Finish DB connection " << '\n';
+
+    } catch (std::exception const& e) {
+        std::cerr << "ERROR: " << e.what() << '\n';
+        return 1;
+    }
+
     std::cout << "Init http server" << std::endl;
 
     util::Args args = util::parse_args(argc, argv);
