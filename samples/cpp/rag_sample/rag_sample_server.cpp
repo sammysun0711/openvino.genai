@@ -21,6 +21,63 @@
 
 using json = nlohmann::json;
 
+void setup(pqxx::connection& conn) {
+    pqxx::work tx{conn};
+    tx.exec0("CREATE EXTENSION IF NOT EXISTS vector");
+    tx.exec0("DROP TABLE IF EXISTS documents");
+    tx.exec0("CREATE TABLE documents (id bigserial PRIMARY KEY, content text, embedding vector(768))");
+    tx.commit();
+    std::cout << "finished setup of table document" << std::endl;
+}
+
+void test_retrieval(pqxx::connection& conn) {
+    std::cout << "test_retrieve" << std::endl;
+
+    pqxx::work tx{conn};
+
+    std::ifstream f_document_data("../../../../../samples/cpp/rag_sample/document_data.json");
+    json document_data = json::parse(f_document_data);
+
+    // this is query-inserted embedding (16, 768) 
+    std::ifstream f_embeddings("../../../../../samples/cpp/rag_sample/embeddings.json"); 
+    json embeddings_data = json::parse(f_embeddings);
+    std::string prompt = "what is Chatbot?";
+    std::vector<std::string> inputs;
+    inputs.push_back(prompt);
+    for (auto& elem : document_data["data"])
+        inputs.push_back(elem);
+
+    std::cout << "get inputs successed\n";
+    std::cout << "document_data: " << inputs.size() << std::endl; // 1+15
+    std::cout << "embeddings_data: " << embeddings_data.size() << ", " << embeddings_data[0].size() << std::endl;  // 16
+
+    for (size_t i = 0; i < inputs.size(); ++i) {
+        // std::cout << "id: " << i << std::endl;
+        // if chunks size is too large, try stream to accelerate.
+        std::string insert_sql = "INSERT INTO documents (content, embedding) VALUES ($1, $2)";
+        // or HalfVector
+        pgvector::Vector embeddings_vector(embeddings_data[i]);
+        tx.exec_params(insert_sql, inputs[i], embeddings_vector);
+    }
+
+    std::cout << "insert successed\n";
+    
+    pgvector::Vector embedding_query(embeddings_data[0]);
+    // the top 5 search, result without the query
+    pqxx::result res{tx.exec_params("SELECT id, content, embedding FROM documents WHERE id != 1 ORDER BY embedding <-> $1 LIMIT 5", embedding_query)};
+
+    assert(res.size() == 3);
+    
+    for (const pqxx::row& row : res) {
+        std::cout << "ID: " << row[0] << std::endl;
+        //   std::cout << "ID: " << row[0] << ": " << row[1] << std::endl;
+    }
+
+    tx.commit();
+    std::cout << "finished test_retrieve" << std::endl;
+
+}
+
 // (TODO)
 // 1. Add init llm pipeline function                                  - handle_init_llm
 // 2. Add init bert pipeline function                                 - handle_init_embedings
@@ -43,7 +100,11 @@ int main(int argc, char** argv) try {
     try {
         pqxx::connection conn{"user=postgres host=localhost password=openvino port=5432 dbname=postgres"};
         std::cout << "Connected to " << conn.dbname() << '\n';
-        std::cout << "Finish DB connection " << '\n';
+        
+        setup(conn);
+        test_retrieval(conn);
+
+        std::cout << "Finish test_retrieval" << '\n';
 
     } catch (std::exception const& e) {
         std::cerr << "ERROR: " << e.what() << '\n';

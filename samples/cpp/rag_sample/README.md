@@ -12,7 +12,7 @@ optimum-cli export openvino --trust-remote-code --model TinyLlama/TinyLlama-1.1B
 ```
 
 ## Setup of PostgreSQL and Libpqxx
-PostgreSQL
+### PostgreSQL
 
 Download postgresql with this link:
 https://www.enterprisedb.com/downloads/postgres-postgresql-downloads
@@ -21,16 +21,13 @@ https://www.enterprisedb.com/downloads/postgres-postgresql-downloads
 Install PostgreSQL, open pgAdmin 4 and create a user with password with the following guide: 
 https://www.runoob.com/postgresql/windows-install-postgresql.html
 
-Libpqxx
+### Libpqxx
+'Official' C++ client library (language binding), built on top of C library.(BSD licence)
 
-The official C++ client API for PostgreSQL.
-
-Update the source code from https://github.com/jtv/libpqxx in deps\libpqxx:
-git submodule update --init
+Update the source code from https://github.com/jtv/libpqxx in deps\libpqxx
 
 Copy all the DLL files into the release folder like the DLL files of OpenVINO and tbb and openvino-genai.
 The DLL files locate in the installed PostgreSQL path like "C:\Program Files\PostgreSQL\16\bin"
-
 
 ## Install OpenVINO, VS2022 and Build this pipeline
 
