@@ -11,23 +11,73 @@ python3 -m pip install --upgrade-strategy eager -r ../../requirements.txt
 optimum-cli export openvino --trust-remote-code --model TinyLlama/TinyLlama-1.1B-Chat-v1.0 TinyLlama-1.1B-Chat-v1.0
 ```
 
-## Setup of PostgreSQL and Libpqxx
+## Setup of PostgreSQL, Libpqxx and Pgvector
+
+### Langchain's document Loader and Spliter
+
+Use python client with Langchain to provide the document chunks to Server's DB (PostgreSQL).
+
+samples\python\rag_sample\client_get_chunks_embeddings.py
+
+```bat
+conda create -n rag-client python=3.10
+pip install langchain
+cd samples\python\rag_sample\
+python client_get_chunks_embeddings.py --docs test_document_README.md
+```
+
 ### PostgreSQL
 
-Download postgresql with this link:
+Download `postgresql` with this link:
 https://www.enterprisedb.com/downloads/postgres-postgresql-downloads
 (postgresql-16.2-1-windows-x64.exe is tested)
 
-Install PostgreSQL, open pgAdmin 4 and create a user with password with the following guide: 
-https://www.runoob.com/postgresql/windows-install-postgresql.html
-
-### Libpqxx
+Install PostgreSQL with the following guide: 
+https://www.postgresqltutorial.com/postgresql-getting-started/install-postgresql/
+Open `pgAdmin 4` from Windows Search Bar.
+Click Browser(left side) > Servers > Postgre SQL 10.
+Create the user `postgres` with password `openvino`.
+Open `SQL Shell` from Windows Search Bar to check this setup.
+Click 'Enter' for Server, Database, Port, Username and type 'openvino' for Password.
+```bat
+Server [localhost]: 
+Database [postgres]:
+Port [5432]:
+Username [postgres]:
+Password for user postgres:
+```
+### [libpqxx](https://github.com/jtv/libpqxx)
 'Official' C++ client library (language binding), built on top of C library.(BSD licence)
 
 Update the source code from https://github.com/jtv/libpqxx in deps\libpqxx
 
 Copy all the DLL files into the release folder like the DLL files of OpenVINO and tbb and openvino-genai.
 The DLL files locate in the installed PostgreSQL path like "C:\Program Files\PostgreSQL\16\bin"
+
+The pipeline connects with DB based on Libpqxx.
+
+### [pgvector](https://github.com/pgvector/pgvector.git)
+Open-source vector similarity search for Postgres
+
+For Windows, Ensure C++ support in Visual Studio 2022 is installed, then use nmake to build in Command Prompt for VS 2022(run as Administrator):
+```bat
+set "PGROOT=C:\Program Files\PostgreSQL\16"
+cd %TEMP%
+git clone --branch v0.7.2 https://github.com/pgvector/pgvector.git
+cd pgvector
+nmake /F Makefile.win
+nmake /F Makefile.win install
+```
+Enable the extension (do this once in each database where you want to use it), run `SQL Shell` from Windows Search Bar with
+```bat
+CREATE EXTENSION vector;
+```
+Printing `CREATE EXTENSION` shows succesful settup of Pgvector.
+
+### [pgvector-cpp](https://github.com/pgvector/pgvector-cpp)
+pgvector support for C++ (supports libpqxx). 
+The headers(pqxx.hpp, vector.hpp, halfvec.hpp) are copied into the local folder rag_sample\include.
+Our pipeline do the vector similarity search for the chunks embeddings in PostgreSQL, based on pgvector-cpp.
 
 ## Install OpenVINO, VS2022 and Build this pipeline
 
