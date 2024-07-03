@@ -1,4 +1,8 @@
+// Copyright (C) 2023-2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+
 #include <filesystem>
+
 #include "httplib.h"
 #include "iostream"
 #include "json.hpp"
@@ -13,12 +17,15 @@ void custom_sleep(int seconds) {
 }
 
 static auto usage() -> void {
-    std::cout << "Usage: " << " [options]\n"
+    std::cout << "Usage: "
+              << " [options]\n"
               << "\n"
               << "options:\n"
               << "  help     \n"
               << "  init_embeddings     \n"
               << "  embeddings          \n"
+              << "  db_retrieval          \n"
+              << "  db_retrieval_llm          \n"
               << "  embeddings_unload          \n"
               << "  llm_init            \n"
               << "  llm         \n"
@@ -50,9 +57,9 @@ int main() {
     std::cout << "Init client finished\n";
     usage();
     bool status = true;
-    cli.set_connection_timeout(30, 0); // 30 seconds
-    cli.set_read_timeout(20, 0); // 20 seconds
-    cli.set_write_timeout(5, 0); // 5 seconds
+    cli.set_connection_timeout(30, 0);  // 30 seconds
+    cli.set_read_timeout(20, 0);        // 20 seconds
+    cli.set_write_timeout(5, 0);        // 5 seconds
 
     while (std::cin >> command && command != "exit") {
         if (command == "help") {
@@ -63,19 +70,20 @@ int main() {
                 std::cout << init_embeddings->body << "\n";
             } else {
                 std::cout << "Init embeddings failed\n";
-                std::cout << "Status: "<< httplib::status_message(init_embeddings->status) << std::endl;
+                std::cout << "Status: " << httplib::status_message(init_embeddings->status) << std::endl;
             }
         } else if (command == "embeddings") {
             std::cout << "load json\n";
 
-            std::ifstream f("C:/Users/openvino/ys/xiake_genai/openvino.genai/samples/cpp/rag_sample/document_data.json");
+            // test only
+            std::ifstream f("../../../../../samples/cpp/rag_sample/document_data.json");
             json data = json::parse(f);
             auto embeddings = cli.Post("/embeddings", data.dump(), "application/json");
             if (embeddings->status == httplib::StatusCode::OK_200) {
                 std::cout << embeddings->body << "\n";
             } else {
                 std::cout << "Embeddings failed\n";
-                std::cout << "Status: "<< httplib::status_message(embeddings->status) << std::endl;
+                std::cout << "Status: " << httplib::status_message(embeddings->status) << std::endl;
             }
         } else if (command == "llm_init") {
             auto llm_init = cli.Post("/llm_init", "", "");
@@ -83,7 +91,7 @@ int main() {
                 std::cout << llm_init->body << "\n";
             } else {
                 std::cout << "Init llm failed\n";
-                std::cout << "Status: "<< httplib::status_message(llm_init->status) << std::endl;
+                std::cout << "Status: " << httplib::status_message(llm_init->status) << std::endl;
             }
 
         } else if (command == "llm") {
@@ -100,9 +108,45 @@ int main() {
                         std::cout << "completions->body: " << completions->body << "\n";
                     } else {
                         std::cout << "Completions failed\n";
-                        std::cout << "Status: "<< httplib::status_message(completions->status) << std::endl;
+                        std::cout << "Status: " << httplib::status_message(completions->status) << std::endl;
                     }
                     std::cout << "Enter your prompt: ";
+                }
+            }
+        } else if (command == "db_retrieval") {
+            std::string query_prompt;
+            std::cout << "Enter your prompt for DB: ";
+            while (true) {
+                getline(std::cin, query_prompt);
+                if (query_prompt.length() != 0) {
+                    if (query_prompt == "exit")
+                        break;
+                    auto db_retrieval = cli.Post("/db_retrieval", query_prompt, "text/plain");
+                    custom_sleep(1);
+                    if (db_retrieval->status == httplib::StatusCode::OK_200) {
+                        std::cout << "db_retrieval->body: " << db_retrieval->body << "\n";
+                    } else {
+                        std::cout << "db_retrieval failed\n";
+                        std::cout << "Status: " << httplib::status_message(db_retrieval->status) << std::endl;
+                    }
+                }
+            }
+        } else if (command == "db_retrieval_llm") {
+            std::string query_prompt;
+            std::cout << "Enter your prompt for DB: ";
+            while (true) {
+                getline(std::cin, query_prompt);
+                if (query_prompt.length() != 0) {
+                    if (query_prompt == "exit")
+                        break;
+                    auto db_retrieval = cli.Post("/db_retrieval_llm", query_prompt, "text/plain");
+                    custom_sleep(1);
+                    if (db_retrieval->status == httplib::StatusCode::OK_200) {
+                        std::cout << "db_retrieval->body: " << db_retrieval->body << "\n";
+                    } else {
+                        std::cout << "db_retrieval failed\n";
+                        std::cout << "Status: " << httplib::status_message(db_retrieval->status) << std::endl;
+                    }
                 }
             }
         } else if (command == "llm_unload") {
@@ -111,7 +155,7 @@ int main() {
                 std::cout << "Unload llm success\n";
             } else {
                 std::cout << "Unload llm failed\n";
-                std::cout << "Status: "<< httplib::status_message(llm_unload->status) << std::endl;
+                std::cout << "Status: " << httplib::status_message(llm_unload->status) << std::endl;
             }
         } else if (command == "embeddings_unload") {
             auto embeddings_unload = cli.Post("/embeddings_unload", "", "");
@@ -119,8 +163,7 @@ int main() {
                 std::cout << "Unload embeddings success\n";
             } else {
                 std::cout << "Unload embeddings failed\n";
-                std::cout << "Status: "<< httplib::status_message(embeddings_unload->status) << std::endl;
-
+                std::cout << "Status: " << httplib::status_message(embeddings_unload->status) << std::endl;
             }
         } else if (command == "health_cheak") {
             auto health = cli.Post("/health", "", "");
@@ -128,7 +171,7 @@ int main() {
                 std::cout << "health: " << health->body << "\n";
             } else {
                 std::cout << "health_cheak failed\n";
-                std::cout << "Status: "<< httplib::status_message(health->status) << std::endl;
+                std::cout << "Status: " << httplib::status_message(health->status) << std::endl;
             }
         }
 

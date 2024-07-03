@@ -21,6 +21,7 @@ public:
         std::string llm_device = "CPU";
         std::string embedding_model_path = "";
         std::string embedding_device = "CPU";
+        std::string db_connection = "user=postgres host=localhost password=openvino port=5432 dbname=postgres";
         int max_new_tokens = 256;
         bool do_sample = false;
         int top_k = 0;
@@ -33,11 +34,17 @@ public:
     struct ServerContext {
         std::shared_ptr<ov::genai::LLMPipeline> llm_pointer;
         std::shared_ptr<Embeddings> embedding_pointer;
+        std::shared_ptr<DBPgvector> db_pgvector_pointer;
+
         util::Args args;
 
         State server_state = State::STOPPED;
         State embedding_state = State::STOPPED;
         State llm_state = State::STOPPED;
+        State db_state = State::STOPPED;
+
+        size_t chunk_num = 0;
+        std::vector<std::string> retrieval_res;
 
         ServerContext(Args arg_): args(arg_){}
     };
@@ -52,6 +59,7 @@ public:
             << "  --llm_device             STRING      Specify which device used for llm inference\n"
             << "  --embedding_model_path   PATH        Directory contains OV Bert model and tokenizers\n"
             << "  --embedding_device       STRING      Specify which device used for bert inference\n"
+            << "  --db_connection          STRING      Specify which user, host, password, port, dbname\n"
             << "  --max_new_tokens         N           Specify max new generated tokens (default: 256)\n"
             << "  --do_sample              BOOL        Specify whether do random sample (default: False)\n"
             << "  --top_k                  N           Specify top-k parameter for sampling (default: 0)\n"
@@ -77,6 +85,8 @@ public:
                 args.llm_model_path = argv[++i];
             } else if (arg == "--llm_device") {
                 args.llm_device = argv[++i];
+            } else if (arg == "--db_connection") {
+                args.db_connection = argv[++i];
             } else if (arg == "--embedding_model_path") {
                 args.embedding_model_path = argv[++i];
             } else if (arg == "--embedding_device") {

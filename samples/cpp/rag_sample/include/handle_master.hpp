@@ -1,3 +1,6 @@
+// Copyright (C) 2023-2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+
 #ifndef _HANDLE_MASTER
 #define _HANDLE_MASTER
 
@@ -8,11 +11,12 @@
 #include <sstream>
 #include <variant>
 
+#include "db_pgvector.hpp"
 #include "embeddings.hpp"
 #include "httplib.h"
 #include "json.hpp"
-#include "util.hpp"
 #include "state.hpp"
+#include "util.hpp"
 
 using json = nlohmann::json;
 using HandleInput = std::variant<int, std::shared_ptr<Embeddings>, std::shared_ptr<ov::genai::LLMPipeline>>;
@@ -43,7 +47,17 @@ public:
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_health(
         util::ServerContext& server_context_ref);
 
+    std::function<void(const httplib::Request&, httplib::Response&)> get_handle_db_init(
+        util::ServerContext& server_context_ref);
 
+    std::function<void(const httplib::Request&, httplib::Response&)> get_handle_db_store_embeddings(
+        util::ServerContext& server_context_ref);
+
+    std::function<void(const httplib::Request&, httplib::Response&)> get_handle_db_retrieval(
+        util::ServerContext& server_context_ref);
+
+    std::function<void(const httplib::Request&, httplib::Response&)> get_handle_db_retrieval_llm(
+        util::ServerContext& server_context_ref);
 };
 
 #endif
