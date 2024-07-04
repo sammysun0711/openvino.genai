@@ -228,8 +228,8 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
             for (auto& i : retrieval_res)
                 prompt_template = prompt_template + i;
 
-            prompt_template = prompt_template + ". The question is ";
-            std::string response = server_context_ref.llm_pointer->generate(prompt, config);
+            prompt_template = prompt_template + ". The question is " + prompt;
+            std::string response = server_context_ref.llm_pointer->generate(prompt_template, config);
 
             std::cout << "response: " << response << "\n";
             server_context_ref.llm_state = State::IDLE;
