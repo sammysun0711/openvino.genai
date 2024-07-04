@@ -33,11 +33,17 @@ public:
     struct ServerContext {
         std::shared_ptr<ov::genai::LLMPipeline> llm_pointer;
         std::shared_ptr<Embeddings> embedding_pointer;
+        std::shared_ptr<DBPgvector> db_pgvector_pointer;
+
         util::Args args;
 
         State server_state = State::STOPPED;
         State embedding_state = State::STOPPED;
         State llm_state = State::STOPPED;
+        State db_state = State::STOPPED;
+
+        size_t chunk_num = 0;
+        std::vector<std::string> retrieval_res;
 
         ServerContext(Args arg_): args(arg_){}
     };

@@ -19,6 +19,8 @@ static auto usage() -> void {
               << "  help     \n"
               << "  init_embeddings     \n"
               << "  embeddings          \n"
+              << "  db_retrieval          \n" 
+              << "  db_retrieval_llm          \n" 
               << "  embeddings_unload          \n"
               << "  llm_init            \n"
               << "  llm         \n"
@@ -104,6 +106,44 @@ int main() {
                         std::cout << "Status: "<< httplib::status_message(completions->status) << std::endl;
                     }
                     std::cout << "Enter your prompt: ";
+                }
+            }
+        } else if (command == "db_retrieval") {
+            std::string query_prompt;
+            std::cout << "Enter your prompt for DB: ";
+            while (true) {
+                getline(std::cin, query_prompt);
+                if (query_prompt.length() != 0) {
+                    if (query_prompt == "exit")
+                        break;
+                    auto db_retrieval = cli.Post("/db_retrieval", query_prompt, "text/plain");
+                    custom_sleep(1);
+                    if (db_retrieval->status == httplib::StatusCode::OK_200) {
+                        std::cout << "db_retrieval->body: " << db_retrieval->body << "\n";
+                    } else {
+                        std::cout << "db_retrieval failed\n";
+                        std::cout << "Status: " << httplib::status_message(db_retrieval->status) << std::endl;
+                    }
+                    //std::cout << "Enter your prompt for DB: ";
+                }
+            }
+        } else if (command == "db_retrieval_llm") {
+            std::string query_prompt;
+            std::cout << "Enter your prompt for DB: ";
+            while (true) {
+                getline(std::cin, query_prompt);
+                if (query_prompt.length() != 0) {
+                    if (query_prompt == "exit")
+                        break;
+                    auto db_retrieval = cli.Post("/db_retrieval_llm", query_prompt, "text/plain");
+                    custom_sleep(1);
+                    if (db_retrieval->status == httplib::StatusCode::OK_200) {
+                        std::cout << "db_retrieval->body: " << db_retrieval->body << "\n";
+                    } else {
+                        std::cout << "db_retrieval failed\n";
+                        std::cout << "Status: " << httplib::status_message(db_retrieval->status) << std::endl;
+                    }
+                     //std::cout << "Enter your prompt: ";
                 }
             }
         } else if (command == "llm_unload") {

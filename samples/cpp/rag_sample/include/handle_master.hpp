@@ -9,6 +9,7 @@
 #include <variant>
 
 #include "embeddings.hpp"
+#include "db_pgvector.hpp" 
 #include "httplib.h"
 #include "json.hpp"
 #include "util.hpp"
@@ -43,7 +44,17 @@ public:
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_health(
         util::ServerContext& server_context_ref);
 
+    std::function<void(const httplib::Request&, httplib::Response&)> get_handle_db_init(
+        util::ServerContext& server_context_ref);
 
+    std::function<void(const httplib::Request&, httplib::Response&)> get_handle_db_store_embeddings(
+        util::ServerContext& server_context_ref);
+
+    std::function<void(const httplib::Request&, httplib::Response&)> get_handle_db_retrieval(
+        util::ServerContext& server_context_ref);
+
+    std::function<void(const httplib::Request&, httplib::Response&)> get_handle_db_retrieval_llm(
+        util::ServerContext& server_context_ref);
 };
 
 #endif

@@ -120,7 +120,9 @@ def send_data_to_server(host, port, json_data):
 
     conn = http.client.HTTPConnection(host, port, 30)
     headers = {"Content-Type": "application/json"}  
-    conn.request("POST", "/embeddings_init")
+    conn.request("POST", "/db_init")
+    # conn.request("POST", "/embeddings_init")
+
     response = conn.getresponse()
     print("response.status: ", response.status)
     if response.status == 200:
@@ -134,13 +136,23 @@ def send_data_to_server(host, port, json_data):
     #     # print("len is: ", len(data))
     #     json_data = json.dumps(data)
 
-    conn.request("POST", "/embeddings", json_data, headers=headers)
+    # conn.request("POST", "/embeddings", json_data, headers=headers)
+    conn.request("POST", "/db_store_embeddings", json_data, headers=headers)
     response = conn.getresponse()
     print("response.status: ", response.status)
     if response.status == 200:
         print(f"Server response: {response.read().decode('utf-8')}")
     else:
         print(f"Error: Server returned status code {response.status}")
+
+    # conn.request("POST", "/db_retrieval", json_data, headers=headers)
+    # response = conn.getresponse()
+    # print("response.status: ", response.status)
+    # if response.status == 200:
+    #     print(f"Server response: {response.read().decode('utf-8')}")
+    # else:
+    #     print(f"Error: Server returned status code {response.status}")
+
   finally:
     conn.close()
 
@@ -155,7 +167,7 @@ def main():
     parser.add_argument("--port", type=int, default=7890, help="Server port number")
     args = parser.parse_args()
 
-    print("get chunks from document with langchain's loader and spliter")
+    print("Start to load and split document to get chunks from document via Langchain")
     # Get document chunks
     json_data = get_chunks(args.docs, args.spliter, args.chunk_size, args.chunk_overlap)
     # embeddings_init and embeddings

@@ -50,61 +50,54 @@ inline ov::Tensor Embeddings::padding_for_fixed_input_shape(ov::Tensor input, ov
 
 
 
-std::vector<std::vector<std::vector<float>>> Embeddings::encode_queries(std::vector<std::string> queries){
-    std::cout << "size of queries: " << queries.size() << std::endl;
-    std::vector<std::vector<std::vector<float>>> embedding_results;
-    for(auto query: queries){
-        std::vector<std::vector<float>> embedding_result = encode_query(query);
-        embedding_results.push_back(embedding_result);
-    }
-    std::cout << "size of embedding_results: " << embedding_results.size() << std::endl;
-    std::cout << "size of embedding_results0: " << embedding_results[0].size() << std::endl;
-    std::cout << "size of embedding_results00: " << embedding_results[0][0].size() << std::endl;
-    std::cout << "embedding infer successed\n";
-    return embedding_results;
-}
-
-
-std::vector<std::vector<float>> Embeddings::encode_query(std::string query){
-    //tokenize
+std::vector<float> Embeddings::encode_query(std::string query) {
+    // tokenize
     auto tokenied_output = tokenize(query);
 
-    auto input_ids = convert_inttensor_to_floattensor(tokenied_output[0]); 
-    auto attention_mask = convert_inttensor_to_floattensor(tokenied_output[1]); 
-    auto token_type_ids = convert_inttensor_to_floattensor(tokenied_output[2]); 
+    auto input_ids = convert_inttensor_to_floattensor(tokenied_output[0]);
+    auto attention_mask = convert_inttensor_to_floattensor(tokenied_output[1]);
+    auto token_type_ids = convert_inttensor_to_floattensor(tokenied_output[2]);
 
     auto input_ids_padding = padding_for_fixed_input_shape(input_ids, ov::Shape{1, 512});
     auto attention_mask_padding = padding_for_fixed_input_shape(attention_mask, ov::Shape{1, 512});
     auto token_type_ids_padding = padding_for_fixed_input_shape(token_type_ids, ov::Shape{1, 512});
 
-    std::cout << "tokenize encode successed\n";
+    //std::cout << "tokenize encode successed\n";
     auto seq_len = input_ids.get_size();
-     
+
     // Initialize inputs
     embedding_model.set_tensor("input_ids", input_ids_padding);
     embedding_model.set_tensor("attention_mask", attention_mask_padding);
     embedding_model.set_tensor("token_type_ids", token_type_ids_padding);
 
     embedding_model.infer();
-    auto res = embedding_model.get_tensor("last_hidden_state");
+    auto res = embedding_model.get_tensor("pooler_output");
 
     auto shape = res.get_shape();
-    // std::cout << "res shape: " << shape<< std::endl;
-    
-    std::vector<std::vector<float>> embedding_result;
-    float *output_buffer = res.data<float>();
+    //std::cout << "res shape: " << shape << std::endl;
+
+    std::vector<float> embedding_result;
+    float* output_buffer = res.data<float>();
     for (size_t i = 0; i < shape[0]; i++) {
         for (size_t j = 0; j < shape[1]; j++) {
-            std::vector<float> tmp(shape[2]);
-            for (size_t k = 0; k < shape[2]; k++) {
-                // std::cout << output_buffer[i, j, k] << " ";
-                tmp[k] = output_buffer[i, j, k];
-            }
-            embedding_result.push_back(tmp);
-            // std::cout << std::endl;
+            embedding_result.push_back(output_buffer[i, j]);
         }
     }
-    
+
     return embedding_result;
 }
 
+std::vector<std::vector<float>> Embeddings::encode_queries(std::vector<std::string> queries) {
+    std::cout << "size of queries: " << queries.size() << std::endl;
+    std::cout << "Start Embedding " << std::endl;
+
+    std::vector<std::vector<float>> embedding_results;
+    for (auto query : queries) {
+        std::vector<float> embedding_result = encode_query(query);
+        embedding_results.push_back(embedding_result);
+    }
+    std::cout << "shape of embedding_results: (" << embedding_results.size() << ", " << embedding_results[0].size() << ")"
+              << std::endl;
+    std::cout << "embedding infer successed\n";
+    return embedding_results;
+}
