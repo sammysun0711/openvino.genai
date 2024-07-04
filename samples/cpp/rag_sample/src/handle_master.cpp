@@ -1,3 +1,6 @@
+// Copyright (C) 2023-2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+
 #include "handle_master.hpp"
 
 using json = nlohmann::json;
@@ -79,21 +82,19 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
 
 std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_handle_db_init(
     util::ServerContext& server_context_ref) {
-    const auto handle_db_init = [&server_context_ref](const httplib::Request& req_db,
-                                                              httplib::Response& res_db) {
+    const auto handle_db_init = [&server_context_ref](const httplib::Request& req_db, httplib::Response& res_db) {
         if (server_context_ref.db_state == State::STOPPED || server_context_ref.db_state == State::ERR) {
             server_context_ref.embedding_pointer = std::make_shared<Embeddings>();
             server_context_ref.embedding_pointer->init(server_context_ref.args.embedding_model_path,
                                                        server_context_ref.args.embedding_device);
             server_context_ref.db_pgvector_pointer = std::make_shared<DBPgvector>();
-            server_context_ref.db_pgvector_pointer->db_setup();
+            server_context_ref.db_pgvector_pointer->db_setup(server_context_ref.args.db_connection);
             server_context_ref.db_state = State::IDLE;
             res_db.set_header("Access-Control-Allow-Origin", req_db.get_header_value("Origin"));
             res_db.set_content("Init db success.", "text/plain");
         } else {
             res_db.set_header("Access-Control-Allow-Origin", req_db.get_header_value("Origin"));
-            res_db.set_content("Cannot init db, cause db is already be initialized.",
-                                      "text/plain");
+            res_db.set_content("Cannot init db, cause db is already be initialized.", "text/plain");
         }
     };
 
@@ -114,15 +115,15 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
             std::cout << "get inputs successed\n";
             server_context_ref.embedding_state = State::RUNNING;
 
-            std::vector<std::vector<float>> res_new =
-                server_context_ref.embedding_pointer->encode_queries(inputs);
+            std::vector<std::vector<float>> res_new = server_context_ref.embedding_pointer->encode_queries(inputs);
             server_context_ref.embedding_state = State::IDLE;
             res_embedding.set_content("Embeddings success", "text/plain");
         } else {
             res_embedding.set_header("Access-Control-Allow-Origin", req_embedding.get_header_value("Origin"));
-            res_embedding.set_content("Cannot do embeddings, cause embeddings inferrequest is now not initialized or busy, check "
-                                      "the stats of embeddings.",
-                                      "text/plain");
+            res_embedding.set_content(
+                "Cannot do embeddings, cause embeddings inferrequest is now not initialized or busy, check "
+                "the stats of embeddings.",
+                "text/plain");
         }
     };
 
@@ -144,7 +145,8 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
             std::cout << "get inputs successed\n";
             server_context_ref.db_state = State::RUNNING;
 
-            std::vector<std::vector<float>> embeddings_res = server_context_ref.embedding_pointer->encode_queries(inputs);
+            std::vector<std::vector<float>> embeddings_res =
+                server_context_ref.embedding_pointer->encode_queries(inputs);
             std::cout << "inputs embedding successed\n";
 
             server_context_ref.db_pgvector_pointer->db_store_embeddings(inputs, embeddings_res);
@@ -155,10 +157,9 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
             res_insert.set_content("insert success", "text/plain");
         } else {
             res_insert.set_header("Access-Control-Allow-Origin", req_insert.get_header_value("Origin"));
-            res_insert.set_content(
-                "Cannot insert, cause insert inferrequest is now not initialized or busy, check "
-                "the stats of insert.",
-                "text/plain");
+            res_insert.set_content("Cannot insert, cause insert inferrequest is now not initialized or busy, check "
+                                   "the stats of insert.",
+                                   "text/plain");
         }
     };
 
@@ -181,17 +182,18 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
                 server_context_ref.embedding_pointer->encode_queries(query);
             server_context_ref.retrieval_res =
                 server_context_ref.db_pgvector_pointer->db_retrieval(server_context_ref.chunk_num,
-                                                                 query,
-                                                                 embeddings_query);
+                                                                     query,
+                                                                     embeddings_query);
             std::cout << "HandleMaster::db_retrieval successed\n";
 
             server_context_ref.db_state = State::IDLE;
             res_retrieval.set_content("Retrieval successed", "text/plain");
         } else {
             res_retrieval.set_header("Access-Control-Allow-Origin", res_retrieval.get_header_value("Origin"));
-            res_retrieval.set_content("Cannot retrieve, cause retrieve inferrequest is now not initialized or busy, check "
-                                   "the stats of retrieve.",
-                                   "text/plain");
+            res_retrieval.set_content(
+                "Cannot retrieve, cause retrieve inferrequest is now not initialized or busy, check "
+                "the stats of retrieve.",
+                "text/plain");
         }
     };
 
@@ -314,9 +316,8 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
 
         std::string response =
             "embedding_state: " + response_emb + "   db_state: " + response_db + "   llm_state: " + response_llm;
-        // std::cout << "embeddings state: " << response << "\n";
         res_health.set_content(response, "text/plain");
     };
-    
+
     return handle_health;
 }

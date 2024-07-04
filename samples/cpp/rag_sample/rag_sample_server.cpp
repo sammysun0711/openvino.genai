@@ -42,7 +42,7 @@ int main(int argc, char** argv) try {
     auto handle_llm_init = handle_master.get_handle_llm_init(server_context);
     auto handle_llm = handle_master.get_handle_llm(server_context);
     auto handle_llm_unload = handle_master.get_handle_llm_unload(server_context);
-    
+
     auto handle_embeddings_init = handle_master.get_handle_embeddings_init(server_context);
     auto handle_embeddings = handle_master.get_handle_embeddings(server_context);
     auto handle_embeddings_unload = handle_master.get_handle_embeddings_unload(server_context);
@@ -54,7 +54,6 @@ int main(int argc, char** argv) try {
     auto handle_db_retrieval = handle_master.get_handle_db_retrieval(server_context);
     auto handle_db_retrieval_llm = handle_master.get_handle_db_retrieval_llm(server_context);
 
-
     svr->Options(R"(.*)", [](const httplib::Request& req, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", req.get_header_value("Origin"));
         res.set_header("Access-Control-Allow-Methods", "POST");
@@ -62,7 +61,7 @@ int main(int argc, char** argv) try {
         return res.set_content("", "application/json; charset=utf-8");
     });
 
-    svr->Post ("/health", handle_health);
+    svr->Post("/health", handle_health);
     svr->Post("/embeddings_init", handle_embeddings_init);
     svr->Post("/embeddings", handle_embeddings);
     svr->Post("/embeddings_unload", handle_embeddings_unload);

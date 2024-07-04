@@ -1,3 +1,6 @@
+// Copyright (C) 2023-2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+
 #ifndef _HANDLE_MASTER
 #define _HANDLE_MASTER
 
@@ -8,12 +11,12 @@
 #include <sstream>
 #include <variant>
 
+#include "db_pgvector.hpp"
 #include "embeddings.hpp"
-#include "db_pgvector.hpp" 
 #include "httplib.h"
 #include "json.hpp"
-#include "util.hpp"
 #include "state.hpp"
+#include "util.hpp"
 
 using json = nlohmann::json;
 using HandleInput = std::variant<int, std::shared_ptr<Embeddings>, std::shared_ptr<ov::genai::LLMPipeline>>;

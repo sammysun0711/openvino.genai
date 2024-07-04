@@ -26,6 +26,26 @@ cd samples\python\rag_sample\
 python client_get_chunks_embeddings.py --docs test_document_README.md
 ```
 
+```bat
+usage: client_get_chunks_embeddings.py [-h] --docs DOCS [DOCS ...] [--spliter {Character,RecursiveCharacter,Markdown,Chinese}]
+                                       [--chunk_size CHUNK_SIZE] [--chunk_overlap CHUNK_OVERLAP] [--host HOST] [--port PORT]
+
+Process documents and send data to server.
+
+options:
+  -h, --help            show this help message and exit
+  --docs DOCS [DOCS ...]
+                        List of documents to process (e.g., test_document_README.md)
+  --spliter {Character,RecursiveCharacter,Markdown,Chinese}
+                        Chunking method
+  --chunk_size CHUNK_SIZE
+                        Chunk size for processing
+  --chunk_overlap CHUNK_OVERLAP
+                        Chunk overlap for smoother processing
+  --host HOST           Server host address
+  --port PORT           Server port number
+  ```
+  
 ### PostgreSQL
 
 Download `postgresql` with this link:
@@ -38,7 +58,7 @@ Open `pgAdmin 4` from Windows Search Bar.
 Click Browser(left side) > Servers > Postgre SQL 10.
 Create the user `postgres` with password `openvino`.
 Open `SQL Shell` from Windows Search Bar to check this setup.
-Click 'Enter' for Server, Database, Port, Username and type 'openvino' for Password.
+'Enter' to set Server, Database, Port, Username as default and type 'openvino' for Password. 
 ```bat
 Server [localhost]: 
 Database [postgres]:
@@ -105,7 +125,24 @@ Notice:
 ## Run:
 ### Launch RAG Server
 `rag_sample_server --llm_model_path TinyLlama-1.1B-Chat-v1.0 --llm_device CPU`
+```bat
+Usage: rag_sample_server.exe [options]
 
+options:
+  -h,    --help                        Show this help message and exit
+  --llm_model_path         PATH        Directory contains OV LLM model and tokenizers
+  --llm_device             STRING      Specify which device used for llm inference
+  --embedding_model_path   PATH        Directory contains OV Bert model and tokenizers
+  --embedding_device       STRING      Specify which device used for bert inference
+  --db_connection          STRING      Specify which user, host, password, port, dbname
+  --max_new_tokens         N           Specify max new generated tokens (default: 256)
+  --do_sample              BOOL        Specify whether do random sample (default: False)
+  --top_k                  N           Specify top-k parameter for sampling (default: 0)
+  --top_p                  N           Specify top-p parameter for sampling (default: 0.7)
+  --temperature            N           Specify temperature parameter for sampling (default: 0.95)
+  --repeat_penalty         N           Specify penalize sequence of tokens (default: 1.0, means no repeat penalty)
+  --verbose                BOOL        Display verbose output including config/system/performance info
+```bat
 ### Lanuch RAG Client
 `rag_sample_client`
 
