@@ -14,51 +14,20 @@ optimum-cli export openvino --trust-remote-code --model TinyLlama/TinyLlama-1.1B
 ## Setup of PostgreSQL, Libpqxx and Pgvector
 
 ### Langchain's document Loader and Spliter
+1. `Load`: `document_loaders` is used to load document data.
+2. `Split`: `text_splitter` breaks large Documents into smaller chunks. This is useful both for indexing data and for passing it in to a model, since large chunks are harder to search over and won’t in a model’s finite context window.
 
-Use python client with Langchain to provide the document chunks to Server's DB (PostgreSQL).
-
-samples\python\rag_sample\client_get_chunks_embeddings.py
-
-```bat
-conda create -n rag-client python=3.10
-pip install langchain
-cd samples\python\rag_sample\
-python client_get_chunks_embeddings.py --docs test_document_README.md
-```
-
-```bat
-usage: client_get_chunks_embeddings.py [-h] --docs DOCS [DOCS ...] [--spliter {Character,RecursiveCharacter,Markdown,Chinese}]
-                                       [--chunk_size CHUNK_SIZE] [--chunk_overlap CHUNK_OVERLAP] [--host HOST] [--port PORT]
-
-Process documents and send data to server.
-
-options:
-  -h, --help            show this help message and exit
-  --docs DOCS [DOCS ...]
-                        List of documents to process (e.g., test_document_README.md)
-  --spliter {Character,RecursiveCharacter,Markdown,Chinese}
-                        Chunking method
-  --chunk_size CHUNK_SIZE
-                        Chunk size for processing
-  --chunk_overlap CHUNK_OVERLAP
-                        Chunk overlap for smoother processing
-  --host HOST           Server host address
-  --port PORT           Server port number
-  ```
-  
 ### PostgreSQL
 
-Download `postgresql` with this link:
-https://www.enterprisedb.com/downloads/postgres-postgresql-downloads
-(postgresql-16.2-1-windows-x64.exe is tested)
+Download `postgresql` from [enterprisedb](https://www.enterprisedb.com/downloads/postgres-postgresql-downloads).(postgresql-16.2-1-windows-x64.exe is tested)
 
-Install PostgreSQL with the following guide: 
-https://www.postgresqltutorial.com/postgresql-getting-started/install-postgresql/
-Open `pgAdmin 4` from Windows Search Bar.
-Click Browser(left side) > Servers > Postgre SQL 10.
-Create the user `postgres` with password `openvino`.
-Open `SQL Shell` from Windows Search Bar to check this setup.
-'Enter' to set Server, Database, Port, Username as default and type 'openvino' for Password. 
+Install PostgreSQL with [postgresqltutorial](https://www..com/postgresql-getting-started/install-postgresql/).
+Setup of PostgreSQL:
+1. Open `pgAdmin 4` from Windows Search Bar.
+2. Click Browser(left side) > Servers > Postgre SQL 10.
+3. Create the user `postgres` with password `openvino`.
+4. Open `SQL Shell` from Windows Search Bar to check this setup. 'Enter' to set Server, Database, Port, Username as default and type 'openvino' for Password.
+ 
 ```bat
 Server [localhost]: 
 Database [postgres]:
@@ -71,8 +40,7 @@ Password for user postgres:
 
 Update the source code from https://github.com/jtv/libpqxx in deps\libpqxx
 
-Copy all the DLL files into the release folder like the DLL files of OpenVINO and tbb and openvino-genai.
-The DLL files locate in the installed PostgreSQL path like "C:\Program Files\PostgreSQL\16\bin"
+
 
 The pipeline connects with DB based on Libpqxx.
 
@@ -117,6 +85,7 @@ cmake -S .\ -B .\build\ && cmake --build .\build\ --config Release -j8
 cd .\build\samples\cpp\rag_sample\Release
 ```
 Notice:
+- Install on Windows: Copy all the DLL files of PostgreSQL, OpenVINO and tbb and openvino-genai into the release folder. The SQL DLL files locate in the installed PostgreSQL path like "C:\Program Files\PostgreSQL\16\bin". 
 - If cmake not installed in the terminal `Command Prompt`, please use the terminal `Developer Command Prompt for VS 2022` instead.
 - The ov tokenizer in the third party needs several minutes to build. Set 8 for -j option to specify the number of parallel jobs. 
 - Once the cmake finishes, check rag_sample_client.exe and rag_sample_server.exe in the relative path `.\build\samples\cpp\rag_sample\Release`. 
@@ -124,7 +93,7 @@ Notice:
 
 ## Run:
 ### Launch RAG Server
-`rag_sample_server --llm_model_path TinyLlama-1.1B-Chat-v1.0 --llm_device CPU`
+`rag_sample_server.exe --llm_model_path TinyLlama-1.1B-Chat-v1.0 --llm_device CPU --embedding_model_path bge-large-zh-v1.5 --embedding_device CPU  --db_connection "user=postgres host=localhost password=openvino port=5432 dbname=postgres"`
 ```bat
 Usage: rag_sample_server.exe [options]
 
@@ -142,12 +111,68 @@ options:
   --temperature            N           Specify temperature parameter for sampling (default: 0.95)
   --repeat_penalty         N           Specify penalize sequence of tokens (default: 1.0, means no repeat penalty)
   --verbose                BOOL        Display verbose output including config/system/performance info
-```bat
+```
 ### Lanuch RAG Client
-`rag_sample_client`
-
+`rag_sample_client.exe`
+```bat
+Init client
+Init client finished
+Usage:  [options]
+options:
+  help
+  init_embeddings
+  embeddings
+  db_retrieval
+  db_retrieval_llm
+  embeddings_unload
+  llm_init
+  llm
+  llm_unload
+  health_cheak
+  exit
+```
 To enable Unicode characters for Windows cmd open `Region` settings from `Control panel`. `Administrative`->`Change system locale`->`Beta: Use Unicode UTF-8 for worldwide language support`->`OK`. Reboot.
 
 Discrete GPUs (dGPUs) usually provide better performance compared to CPUs. It is recommended to run larger models on a dGPU with 32GB+ RAM. For example, the model meta-llama/Llama-2-13b-chat-hf can benefit from being run on a dGPU. Modify the source code to change the device for inference to the GPU.
 
 See https://github.com/openvinotoolkit/openvino.genai/blob/master/src/README.md#supported-models for the list of supported models.
+
+### Lanuch python Client
+Use python client to send the message of DB init and send the document chunks to DB for embedding and storing.
+
+samples\python\rag_sample\client_get_chunks_embeddings.py
+
+```bat
+conda create -n rag-client python=3.10
+pip install langchain
+cd samples\python\rag_sample\
+python client_get_chunks_embeddings.py --docs test_document_README.md
+
+Start to load and split document to get chunks from document via Langchain
+loader and spliter finished, len(chunks) is:  15
+get_chunks completed! Number of chunks: 15
+Init client
+
+response.status:  200
+Server response: Init db success.
+response.status:  200
+Server response: insert success
+finished connnection
+```
+
+```bat
+usage: client_get_chunks_embeddings.py [-h] --docs DOCS [DOCS ...] [--spliter {Character,RecursiveCharacter,Markdown,Chinese}]
+                                       [--chunk_size CHUNK_SIZE] [--chunk_overlap CHUNK_OVERLAP] [--host HOST] [--port PORT]
+
+Process documents and send data to server.
+
+options:
+  -h, --help                      show this help message and exit
+  --docs DOCS [DOCS ...]          List of documents to process (e.g., test_document_README.md)
+  --spliter {Character,RecursiveCharacter,Markdown,Chinese}
+                                  Chunking method
+  --chunk_size CHUNK_SIZE         Chunk size for processing
+  --chunk_overlap CHUNK_OVERLAP   Chunk overlap for smoother processing
+  --host HOST                     Server host address
+  --port PORT                     Server port number
+  ```
