@@ -1,8 +1,11 @@
-# C++ rag sample that supports most popular models like LLaMA 2
+# OpenVINO GenAI Serving (OGS)
+Model Server reference implementation based on OpenVINO GenAI Package for Edge/Client AI PC Use Case
+
+## Use Case 1: C++ RAG Sample that supports most popular models like LLaMA 2
 
 This example showcases for Retrieval-Augmented Generation based on text-generation Large Language Models (LLMs): `chatglm`, `LLaMA`, `Qwen` and other models with the same signature and bert model for embedding feature extraction. The sample fearures `ov::genai::LLMPipeline` and configures it for the chat scenario. There is also a Jupyter [notebook](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/254-llm-chatbot) which provides an example of LLM-powered RAG in Python.
 
-## Download and convert the model and tokenizers
+### Download and convert the model and tokenizers
 
 The `--upgrade-strategy eager` option is needed to ensure `optimum-intel` is upgraded to the latest version.
 
@@ -11,13 +14,13 @@ python3 -m pip install --upgrade-strategy eager -r ../../requirements.txt
 optimum-cli export openvino --trust-remote-code --model TinyLlama/TinyLlama-1.1B-Chat-v1.0 TinyLlama-1.1B-Chat-v1.0
 ```
 
-## Setup of PostgreSQL, Libpqxx and Pgvector
+### Setup of PostgreSQL, Libpqxx and Pgvector
 
-### Langchain's document Loader and Spliter
+#### Langchain's document Loader and Spliter
 1. `Load`: `document_loaders` is used to load document data.
 2. `Split`: `text_splitter` breaks large Documents into smaller chunks. This is useful both for indexing data and for passing it in to a model, since large chunks are harder to search over and won’t in a model’s finite context window.
 
-### PostgreSQL
+#### PostgreSQL
 
 Download `postgresql` from [enterprisedb](https://www.enterprisedb.com/downloads/postgres-postgresql-downloads).(postgresql-16.2-1-windows-x64.exe is tested)
 
@@ -35,7 +38,7 @@ Port [5432]:
 Username [postgres]:
 Password for user postgres:
 ```
-### [libpqxx](https://github.com/jtv/libpqxx)
+#### [libpqxx](https://github.com/jtv/libpqxx)
 'Official' C++ client library (language binding), built on top of C library.(BSD licence)
 
 Update the source code from https://github.com/jtv/libpqxx in deps\libpqxx
@@ -44,7 +47,7 @@ Update the source code from https://github.com/jtv/libpqxx in deps\libpqxx
 
 The pipeline connects with DB based on Libpqxx.
 
-### [pgvector](https://github.com/pgvector/pgvector.git)
+#### [pgvector](https://github.com/pgvector/pgvector.git)
 Open-source vector similarity search for Postgres
 
 For Windows, Ensure C++ support in Visual Studio 2022 is installed, then use nmake to build in Command Prompt for VS 2022(run as Administrator):
@@ -62,17 +65,17 @@ CREATE EXTENSION vector;
 ```
 Printing `CREATE EXTENSION` shows succesful settup of Pgvector.
 
-### [pgvector-cpp](https://github.com/pgvector/pgvector-cpp)
+#### [pgvector-cpp](https://github.com/pgvector/pgvector-cpp)
 pgvector support for C++ (supports libpqxx). 
 The headers(pqxx.hpp, vector.hpp, halfvec.hpp) are copied into the local folder rag_sample\include.
 Our pipeline do the vector similarity search for the chunks embeddings in PostgreSQL, based on pgvector-cpp.
 
-## Install OpenVINO, VS2022 and Build this pipeline
+### Install OpenVINO, VS2022 and Build this pipeline
 
 Download [2024.2 release](https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.2/windows/) from OpenVINO™ archives*. This OV built package is for C++ OpenVINO pipeline, no need to build the source code.
 Install latest [Visual Studio 2022 Community](https://visualstudio.microsoft.com/downloads/) for the C++ dependencies and LLM C++ pipeline editing.
 
-### Windows
+#### Windows
 
 Extract the zip file in any location and set the environment variables with dragging this `setupvars.bat` in the terminal `Command Prompt`. `setupvars.ps1` is used for terminal `PowerShell`.`<INSTALL_DIR>` below refers to the extraction location.
 Run the following CMD in the terminal `Command Prompt`.
@@ -91,8 +94,8 @@ Notice:
 - Once the cmake finishes, check rag_sample_client.exe and rag_sample_server.exe in the relative path `.\build\samples\cpp\rag_sample\Release`. 
 - If Cmake completed without errors, but not find exe, please open the `.\build\OpenVINOGenAI.sln` in VS2022, and set the solution configuration as Release instead of Debug, Then build the llm project within VS2022 again.
 
-## Run:
-### Launch RAG Server
+### Run:
+#### Launch RAG Server
 `rag_sample_server.exe --llm_model_path TinyLlama-1.1B-Chat-v1.0 --llm_device CPU --embedding_model_path bge-large-zh-v1.5 --embedding_device CPU  --db_connection "user=postgres host=localhost password=openvino port=5432 dbname=postgres"`
 ```bat
 Usage: rag_sample_server.exe [options]
@@ -112,7 +115,7 @@ options:
   --repeat_penalty         N           Specify penalize sequence of tokens (default: 1.0, means no repeat penalty)
   --verbose                BOOL        Display verbose output including config/system/performance info
 ```
-### Lanuch RAG Client
+#### Lanuch RAG Client
 `rag_sample_client.exe`
 ```bat
 Init client
@@ -137,7 +140,7 @@ Discrete GPUs (dGPUs) usually provide better performance compared to CPUs. It is
 
 See https://github.com/openvinotoolkit/openvino.genai/blob/master/src/README.md#supported-models for the list of supported models.
 
-### Lanuch python Client
+#### Lanuch python Client
 Use python client to send the message of DB init and send the document chunks to DB for embedding and storing.
 
 samples\python\rag_sample\client_get_chunks_embeddings.py
