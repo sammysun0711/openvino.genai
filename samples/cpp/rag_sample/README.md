@@ -1,5 +1,6 @@
 # OpenVINO GenAI Serving (OGS)
 Model Server reference implementation based on OpenVINO GenAI Package for Edge/Client AI PC Use Case
+![1](https://github.com/sammysun0711/openvino.genai/assets/102195992/53405882-ad02-4d9e-9894-76d98beaadf6)
 
 ## Use Case 1: C++ RAG Sample that supports most popular models like LLaMA 2
 
@@ -180,6 +181,8 @@ options:
   --port PORT                     Server port number
   ```
 
+https://github.com/sammysun0711/openvino.genai/assets/102195992/c596cd86-dc3c-438f-9fa7-d6395951cec5
 
-https://github.com/sammysun0711/openvino.genai/assets/102195992/5bffd94b-c853-4848-99a4-4f12a948746f
+
+
 
