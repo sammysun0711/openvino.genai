@@ -63,7 +63,7 @@ Enable the extension (do this once in each database where you want to use it), r
 ```bat
 CREATE EXTENSION vector;
 ```
-Printing `CREATE EXTENSION` shows succesful settup of Pgvector.
+Printing `CREATE EXTENSION` shows successful setup of Pgvector.
 
 #### [pgvector-cpp](https://github.com/pgvector/pgvector-cpp)
 pgvector support for C++ (supports libpqxx). 
@@ -179,3 +179,7 @@ options:
   --host HOST                     Server host address
   --port PORT                     Server port number
   ```
+
+
+https://github.com/sammysun0711/openvino.genai/assets/102195992/5bffd94b-c853-4848-99a4-4f12a948746f
+
