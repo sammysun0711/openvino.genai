@@ -2,7 +2,7 @@
 ### 1. Setup Environment
 ```bash
 conda create -n rag-client python=3.10
-pip install langchain langchain_community unstructured
+pip install langchain langchain_community unstructured markdown
 ```
 
 ### 2. Run script with langchain for text loader/split and sent to RAG server
