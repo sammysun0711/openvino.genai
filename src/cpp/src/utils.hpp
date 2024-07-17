@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "openvino/genai/llm_pipeline.hpp"
+
 #include <openvino/openvino.hpp>
 #include <nlohmann/json.hpp>
 
@@ -10,7 +12,7 @@ namespace ov {
 namespace genai {
 namespace utils {
 
-Tensor init_attention_mask(Tensor& position_ids);
+Tensor init_attention_mask(const Tensor& position_ids);
 
 void print_tensor(const ov::Tensor& tensor);
 
@@ -65,7 +67,14 @@ void read_anymap_param(const ov::AnyMap& config_map, const std::string& name, T&
     }
 }
 
-std::tuple<int64_t, int64_t, int64_t> get_special_tokens_from_config_json(const std::filesystem::path& config_path);
+const std::string STREAMER_ARG_NAME = "streamer";
+const std::string CONFIG_ARG_NAME = "generation_config";
+
+ov::genai::GenerationConfig from_config_json_if_exists(const std::filesystem::path& model_path);
+
+ov::genai::StreamerVariant get_streamer_from_map(const ov::AnyMap& config_map);
+
+ov::genai::OptionalGenerationConfig get_config_from_map(const ov::AnyMap& config_map);
 
 }  // namespace utils
 }  // namespace genai

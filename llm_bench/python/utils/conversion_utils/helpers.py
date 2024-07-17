@@ -12,6 +12,7 @@ import numpy as np
 from nncf import compress_weights
 from nncf import Dataset
 from openvino import save_model
+import nncf
 from ..nncf_utils import COMPRESSION_OPTIONS, INT4_MODEL_CONFIGURATION
 from optimum.intel.openvino.configuration import _check_default_4bit_configs
 import warnings
@@ -159,10 +160,14 @@ def get_data_aware_args(ov_model, tokenizer, config, compression_args, args):
             res['mode'] = dataset_args['sensitivity_metric']
         if 'awq' in dataset_args:
             res['awq'] = dataset_args['awq']
+        if 'scale_estimation' in dataset_args:
+            res['scale_estimation'] = dataset_args['scale_estimation']
     elif args.dataset is not None:
         dataset_params = args.dataset
         if args.awq:
             res['awq'] = args.awq
+        if args.scale_estimation:
+            res['scale_estimation'] = args.scale_estimation
 
     if dataset_params is not None:
         # for example "wikitext,wikitext-2-v1,train[:1000],text"
@@ -185,12 +190,16 @@ def compress_ov_model_weights_helper(ov_model, tok, config, out_path, compress_w
         warnings.warn("Usage INT8 mode is deprecated and will be removed soon. Please use INT8_ASYM instead", DeprecationWarning)
     if "4BIT_DEFAULT" in compress_weights_format:
         compression_args = _check_default_4bit_configs(config)
+        if compression_args:
+            sym = compression_args.pop("sym", False)
+            compression_args.pop("bits", 4)
+            compression_args["mode"] = nncf.CompressWeightsMode.INT4_SYM if sym else nncf.CompressWeightsMode.INT4_ASYM
         if compression_args is None:
             model_id = out_path.parents[3].name
             if model_id in INT4_MODEL_CONFIGURATION:
                 compression_args = INT4_MODEL_CONFIGURATION[model_id]
             else:
-                compression_args = COMPRESSION_OPTIONS["INT4_SYM"]
+                compression_args = COMPRESSION_OPTIONS["INT4_ASYM"]
 
     if compression_args is None:
         compression_args = COMPRESSION_OPTIONS[compress_weights_format]
