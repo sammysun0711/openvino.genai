@@ -103,7 +103,7 @@ Notice:
 
 ### Run:
 #### Launch RAG Server
-`rag_sample_server.exe --llm_model_path TinyLlama-1.1B-Chat-v1.0 --llm_device GPU --embedding_model_path bge-large-zh-v1.5 --embedding_device GPU  --db_connection "user=postgres host=localhost password=openvino port=5432 dbname=postgres"`
+`rag_sample_server.exe --llm_model_path TinyLlama-1.1B-Chat-v1.0 --llm_device CPU --embedding_model_path bge-large-zh-v1.5 --embedding_device CPU  --db_connection "user=postgres host=localhost password=openvino port=5432 dbname=postgres"`
 ```bat
 Usage: rag_sample_server.exe [options]
 
