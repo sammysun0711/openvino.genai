@@ -8,9 +8,9 @@ namespace ov {
 namespace genai {
 namespace utils {
 
-Tensor init_attention_mask(Tensor& position_ids) {
-    auto shape = position_ids.get_shape();
-    auto attention_mask = ov::Tensor{position_ids.get_element_type(), shape};
+Tensor init_attention_mask(const Tensor& input_ids) {
+    auto shape = input_ids.get_shape();
+    auto attention_mask = ov::Tensor{input_ids.get_element_type(), shape};
     std::fill_n(attention_mask.data<int64_t>(), shape[0] * shape[1], 1);
     return attention_mask;
 }
@@ -153,6 +153,36 @@ ov::Tensor extend_attention(ov::Tensor attention_mask) {
         new_data[batch * (seq_len + 1) + seq_len] = 1;
     }
     return new_atten_mask;
+}
+
+ov::genai::GenerationConfig from_config_json_if_exists(const std::filesystem::path& model_path) {
+    auto config_file_path = model_path / "generation_config.json";
+    if (std::filesystem::exists(config_file_path)) {
+        return ov::genai::GenerationConfig((config_file_path).string());
+    } else {
+        return ov::genai::GenerationConfig{};
+    }
+}
+
+ov::genai::StreamerVariant get_streamer_from_map(const ov::AnyMap& config_map) {
+    ov::genai::StreamerVariant streamer = std::monostate();
+
+    if (config_map.count(STREAMER_ARG_NAME)) {
+        auto any_val = config_map.at(STREAMER_ARG_NAME);
+        if (any_val.is<std::shared_ptr<ov::genai::StreamerBase>>()) {
+            streamer = any_val.as<std::shared_ptr<ov::genai::StreamerBase>>();
+        } else if (any_val.is<std::function<bool(std::string)>>()) {
+            streamer = any_val.as<std::function<bool(std::string)>>();
+        }
+    }
+    return streamer;
+}
+
+ov::genai::OptionalGenerationConfig get_config_from_map(const ov::AnyMap& config_map) {
+    if (config_map.count(CONFIG_ARG_NAME))
+        return config_map.at(CONFIG_ARG_NAME).as<ov::genai::GenerationConfig>();
+    else
+        return std::nullopt;
 }
 
 }  // namespace utils

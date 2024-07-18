@@ -14,6 +14,7 @@
 namespace ov {
 namespace genai {
 
+// Return flag corresponds whether generation should be stopped: false means continue generation, true means stop.
 using StreamerVariant = std::variant<std::function<bool(std::string)>, std::shared_ptr<StreamerBase>, std::monostate>;
 using OptionalGenerationConfig = std::optional<GenerationConfig>;
 using EncodedInputs = std::variant<ov::Tensor, TokenizedInputs>;
@@ -22,9 +23,12 @@ using StringInputs = std::variant<std::string, std::vector<std::string>>;
 /**
 * @brief Structure to store resulting batched tokens and scores for each batch sequence.
 * The first num_return_sequences elements correspond to the first batch element.
+* In the case if results decoded with beam search and random sampling scores contain 
+* sum of logarithmic probabilities for each token in the sequence. In the case 
+* of greedy decoding scores are filled with zeros.
 *
 * @param tokens sequence of resulting tokens
-* @param scores scores for each sequence
+* @param scores sum of logarithmic probabilities of all tokens in the sequence
 */
 class EncodedResults {
 public:
@@ -67,12 +71,18 @@ public:
         if (dr.texts.empty()) {
             return os;
         }
+        if (dr.texts.size() == 1) {
+            os << dr.texts[0];
+            return os;
+        }
         for (size_t i = 0; i < dr.texts.size() - 1; ++i) {
             os << dr.scores[i] << ": " << dr.texts[i] << '\n';
         }
         return os << dr.scores.back() << ": " << dr.texts.back();
     }
 };
+
+class LLMPipelineImplBase;
 
 /**
 * @brief This class is used for generation with LLMs.
@@ -205,12 +215,23 @@ public:
     GenerationConfig get_generation_config() const;
     void set_generation_config(const GenerationConfig& config);
 
-    void start_chat();
+
+    /**
+    * @brief start chat with keeping history in kv cache.
+    * Turns on keeping KV cache between generate calls and automatic applying of chat templates.
+    * In case if beam search is used, KV cache is kept fot the generated sequence with maximal scores.
+    * 
+    * @param system_message optional system message.
+    */
+    void start_chat(const std::string& system_message = "");
+
+    /**
+    * @brief finish chat and clear kv cache.
+    * Turns off keeping KV cache between generate calls.
+    */
     void finish_chat();
-    std::string apply_chat_template(std::string prompt, std::string role = "user") const;
 private:
-    class LLMPipelineImpl;
-    std::unique_ptr<LLMPipelineImpl> m_pimpl;
+    std::unique_ptr<LLMPipelineImplBase> m_pimpl;
 };
 
 std::pair<std::string, Any> streamer(StreamerVariant func);

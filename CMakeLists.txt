@@ -18,7 +18,7 @@ elseif(NOT GENERATOR_IS_MULTI_CONFIG_VAR AND NOT DEFINED CMAKE_BUILD_TYPE)
 endif()
 
 project(OpenVINOGenAI
-        VERSION 2024.2.0.0
+        VERSION 2024.3.0.0
         DESCRIPTION "OpenVINO GenAI"
         HOMEPAGE_URL "https://github.com/openvinotoolkit/openvino.genai"
         LANGUAGES CXX)
@@ -30,17 +30,23 @@ if(NOT OpenVINODeveloperPackage_FOUND)
     find_package(OpenVINO REQUIRED COMPONENTS Runtime)
 endif()
 
+# check that SDPA to PA transformtion exists
+get_target_property(ov_include_dirs openvino::runtime INTERFACE_INCLUDE_DIRECTORIES)
+find_file(spda_to_pa_header sdpa_to_paged_attention.hpp
+    PATHS ${ov_include_dirs}
+    PATH_SUFFIXES openvino/pass
+    DOC "Path to sdpa_to_paged_attention.hpp header"
+    NO_CACHE REQUIRED NO_DEFAULT_PATH)
+
 include(cmake/features.cmake)
 
 add_subdirectory(thirdparty)
 add_subdirectory(src)
 add_subdirectory(samples)
+add_subdirectory(tests/cpp)
 
 install(FILES LICENSE DESTINATION licensing COMPONENT licensing_genai RENAME LICENSE-GENAI)
 install(FILES third-party-programs.txt DESTINATION licensing COMPONENT licensing_genai RENAME third-party-programs-genai.txt)
-
+set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
 set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)
-if(WIN32 AND NOT DEFINED CPACK_GENERATOR)
-    set(CPACK_GENERATOR "ZIP")
-endif()
 include(CPack)
