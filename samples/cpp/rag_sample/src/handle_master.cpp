@@ -33,7 +33,7 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
             std::cout << "req_llm.body: " << req_llm.body << "\n";
             std::string prompt = req_llm.body;
             server_context_ref.llm_state = State::RUNNING;
-            auto config = server_context_ref.llm_pointer->get_generation_config();
+            ov::genai::GenerationConfig config;
             config.max_new_tokens = server_context_ref.args.max_new_tokens;
             std::string response = server_context_ref.llm_pointer->generate(prompt, config);
             server_context_ref.llm_state = State::IDLE;

@@ -57,9 +57,9 @@ int main() {
     std::cout << "Init client finished\n";
     usage();
     bool status = true;
-    cli.set_connection_timeout(30, 0);  // 30 seconds
-    cli.set_read_timeout(20, 0);        // 20 seconds
-    cli.set_write_timeout(5, 0);        // 5 seconds
+    cli.set_connection_timeout(100, 0);  // 100 seconds
+    cli.set_read_timeout(100, 0);         
+    cli.set_write_timeout(100, 0);         
 
     while (std::cin >> command && command != "exit") {
         if (command == "help") {

@@ -9,12 +9,18 @@ This example showcases for Retrieval-Augmented Generation based on text-generati
 ### Download and convert the model and tokenizers
 
 The `--upgrade-strategy eager` option is needed to ensure `optimum-intel` is upgraded to the latest version.
+Windows:
 
 ```sh
+conda create -n rag-sample python=3.10
+conda activate rag-sample
+cd openvino.genai\samples\cpp\rag_sample
 python3 -m pip install --upgrade-strategy eager -r ../../requirements.txt
+set HF_ENDPOINT=https://hf-mirror.com
 optimum-cli export openvino --trust-remote-code --model TinyLlama/TinyLlama-1.1B-Chat-v1.0 TinyLlama-1.1B-Chat-v1.0
 ```
-
+Notice:
+Please set the environment variable for hf-mirror, if optimum-cli failed to download model from HF with SSLError.
 ### Setup of PostgreSQL, Libpqxx and Pgvector
 
 #### Langchain's document Loader and Spliter
@@ -97,7 +103,7 @@ Notice:
 
 ### Run:
 #### Launch RAG Server
-`rag_sample_server.exe --llm_model_path TinyLlama-1.1B-Chat-v1.0 --llm_device CPU --embedding_model_path bge-large-zh-v1.5 --embedding_device CPU  --db_connection "user=postgres host=localhost password=openvino port=5432 dbname=postgres"`
+`rag_sample_server.exe --llm_model_path TinyLlama-1.1B-Chat-v1.0 --llm_device GPU --embedding_model_path bge-large-zh-v1.5 --embedding_device GPU  --db_connection "user=postgres host=localhost password=openvino port=5432 dbname=postgres"`
 ```bat
 Usage: rag_sample_server.exe [options]
 
@@ -108,7 +114,7 @@ options:
   --embedding_model_path   PATH        Directory contains OV Bert model and tokenizers
   --embedding_device       STRING      Specify which device used for bert inference
   --db_connection          STRING      Specify which user, host, password, port, dbname
-  --max_new_tokens         N           Specify max new generated tokens (default: 256)
+  --max_new_tokens         N           Specify max new generated tokens (default: 32)
   --do_sample              BOOL        Specify whether do random sample (default: False)
   --top_k                  N           Specify top-k parameter for sampling (default: 0)
   --top_p                  N           Specify top-p parameter for sampling (default: 0.7)
@@ -148,7 +154,7 @@ samples\python\rag_sample\client_get_chunks_embeddings.py
 
 ```bat
 conda create -n rag-client python=3.10
-pip install langchain
+pip install langchain langchain_community unstructured markdown
 cd samples\python\rag_sample\
 python client_get_chunks_embeddings.py --docs test_document_README.md
 
@@ -184,5 +190,6 @@ options:
 https://github.com/sammysun0711/openvino.genai/assets/102195992/c596cd86-dc3c-438f-9fa7-d6395951cec5
 
 
-
-
+Notice:
+We use [cpp-httplib](https://github.com/yhirose/cpp-httplib) for connection. Larger LLM and longer max_new_tokens need more connection time(default 100 second in rag_sample_client.cpp).
+Besides TinyLlama-1.1B-Chat-v1.0, Qwen2-7B-Instruct is also tested.
