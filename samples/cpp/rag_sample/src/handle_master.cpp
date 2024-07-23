@@ -12,7 +12,6 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
             server_context_ref.llm_pointer =
                 std::make_shared<ov::genai::LLMPipeline>(server_context_ref.args.llm_model_path,
                                                          server_context_ref.args.llm_device);
-            server_context_ref.llm_pointer->start_chat();
             server_context_ref.llm_state = State::IDLE;
             res.set_header("Access-Control-Allow-Origin", req.get_header_value("Origin"));
             res.set_content("Init llm success.", "text/plain");
