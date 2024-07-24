@@ -21,38 +21,52 @@ optimum-cli export openvino --trust-remote-code --model TinyLlama/TinyLlama-1.1B
 ```
 Notice:
 Please set the environment variable for hf-mirror, if optimum-cli failed to download model from HF with SSLError.
-### Setup of PostgreSQL, Libpqxx and Pgvector
-
-#### Langchain's document Loader and Spliter
-1. `Load`: `document_loaders` is used to load document data.
-2. `Split`: `text_splitter` breaks large Documents into smaller chunks. This is useful both for indexing data and for passing it in to a model, since large chunks are harder to search over and won’t in a model’s finite context window.
+### Setup of PostgreSQL and Pgvector
 
 #### PostgreSQL
+To install PostgreSQL on Windows, you follow these steps:
 
-Download `postgresql` from [enterprisedb](https://www.enterprisedb.com/downloads/postgres-postgresql-downloads).(postgresql-16.2-1-windows-x64.exe is tested)
+1. Download PostgreSQL Installer for Windows: 
+   Download `postgresql 16.3` from [PostgreSQL installers on the EnterpriseDB](https://www.enterprisedb.com/downloads/postgres-postgresql-downloads). postgresql-16.3-2-windows-x64.exe is tested(367MB).
+2. Install PostgreSQL using the installer. Besides, many Select-Next for default setting, the key steps are to `create password` and `uncheck Stack Builder`. The screenshots of PostgreSQL graphical installation wizard refer to [postgresqltutorial](https://www.postgresqltutorial.com/postgresql-getting-started/install-postgresql/) and [guide from enterprisedb](https://www.enterprisedb.com/docs/supported-open-source/postgresql/installing/windows/). (old version PostgreSQL)
+   
+   <details>
+   <summary>Click to expand the steps for PostgreSQL 16.3</summary>
 
-Install PostgreSQL with [postgresqltutorial](https://www..com/postgresql-getting-started/install-postgresql/).
-Setup of PostgreSQL:
-1. Open `pgAdmin 4` from Windows Search Bar.
-2. Click Browser(left side) > Servers > Postgre SQL 10.
-3. Create the user `postgres` with password `openvino`.
-4. Open `SQL Shell` from Windows Search Bar to check this setup. 'Enter' to set Server, Database, Port, Username as default and type 'openvino' for Password.
- 
-```bat
-Server [localhost]: 
-Database [postgres]:
-Port [5432]:
-Username [postgres]:
-Password for user postgres:
-```
-#### [libpqxx](https://github.com/jtv/libpqxx)
-'Official' C++ client library (language binding), built on top of C library.(BSD licence)
+   1) Double-click on the installer file (may need to run as Administrator)
+   2) Select Next. The Installation Directory window opens.
+   3) Select Next. Accept the default installation directory, or specify a location.
+   4) Select components: `Uncheck Stack Builder`. Select Next.
+   5) Select Next. Accept the default location. 
+   6) Enter the password for the database superuser (postgres). After entering the password, retype for confirmation. Select Next.
+   7) Select Next. Default port number: 5432. 
+   8) Select Next. Select the default locale for the PostgreSQL server.
+   9) Select Next. Review the settings.
+   10) Select Next. The wizard informs: "Ready to install". 
+   11) The installation may take a few minutes to complete. 
+   12) Click Finish. Complete installation.
 
-Update the source code from https://github.com/jtv/libpqxx in deps\libpqxx
+   </details> 
 
+3. Test with `SQL Shell`  
+    <details>
+    <summary>Click to expand the logging</summary>
+    
+    Open `SQL Shell` from Windows Search Bar. 'Enter' to set Server, Database, Port, Username as default and type 'openvino' for Password.
+    ```bat
+    Server [localhost]:
+    Database [postgres]:
+    Port [5432]:
+    Username [postgres]:
+    Password for user postgres:
 
+    psql (16.3)
+    Type "help" for help.
 
-The pipeline connects with DB based on Libpqxx.
+    postgres=#
+    ```
+    </details> 
+
 
 #### [pgvector](https://github.com/pgvector/pgvector.git)
 Open-source vector similarity search for Postgres
@@ -61,7 +75,7 @@ For Windows, Ensure C++ support in Visual Studio 2022 is installed, then use nma
 ```bat
 set "PGROOT=C:\Program Files\PostgreSQL\16"
 cd %TEMP%
-git clone --branch v0.7.2 https://github.com/pgvector/pgvector.git
+git clone --branch v0.7.3 https://github.com/pgvector/pgvector.git
 cd pgvector
 nmake /F Makefile.win
 nmake /F Makefile.win install
@@ -104,6 +118,7 @@ Notice:
 ### Run:
 #### Launch RAG Server
 `rag_sample_server.exe --llm_model_path TinyLlama-1.1B-Chat-v1.0 --llm_device CPU --embedding_model_path bge-large-zh-v1.5 --embedding_device CPU  --db_connection "user=postgres host=localhost password=openvino port=5432 dbname=postgres"`
+Please use the password you set in the PostgreSQL installation wizard.
 ```bat
 Usage: rag_sample_server.exe [options]
 
