@@ -1,8 +1,17 @@
-# OpenVINO GenAI Serving (OGS)
-Model Server reference implementation based on OpenVINO GenAI Package for Edge/Client AI PC Use Case
-![1](https://github.com/sammysun0711/openvino.genai/assets/102195992/53405882-ad02-4d9e-9894-76d98beaadf6)
+# OpenVINO GenAI Server (OGS)
+OpenVINO GenAI Model Server reference implementation based on OpenVINO GenAI API for Edge/Client AI PC use case.
 
-## Use Case 1: C++ RAG Sample that supports most popular models like LLaMA 2
+# Why use OpenVINO GenAI Server (OGS)? 
+- Most **light-weighted** serving solution without docker container;
+- Pure **C++ interface** for edge/client application deployment;
+- Pure OpenVINO backend with **minimum package size**;
+- **Cross Hardware platform** deployment among Intel CPU/iGPU/dGPU/NPU;
+
+Here is OpenVINO GenAI Server Architecure:
+![OpenVINO GenAI Server Architecture](https://github.com/user-attachments/assets/faa394cf-4a03-48db-990e-0a44102b787d "OpenVINO GenAI Server Architecture")
+
+
+## Use Case 1: C++ RAG Sample that supports most popular models like LLaMA 3
 
 This example showcases for Retrieval-Augmented Generation based on text-generation Large Language Models (LLMs): `chatglm`, `LLaMA`, `Qwen` and other models with the same signature and bert model for embedding feature extraction. The sample fearures `ov::genai::LLMPipeline` and configures it for the chat scenario. There is also a Jupyter [notebook](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/254-llm-chatbot) which provides an example of LLM-powered RAG in Python.
 
