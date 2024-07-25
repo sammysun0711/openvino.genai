@@ -135,9 +135,10 @@ Run the following CMD in the terminal `Command Prompt`.
      In the deployment, the rag-sample could download [openvino_genai package](https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2024.2/windows) which includes all the DLLs of the openvino_tokenizers, openvino_genai and openvino runtime(must be the same specific version).
 
     Install on Windows: 
-    - Copy all the DLL files of PostgreSQL, OpenVINO Runtime, TBB and openvino-genai into the release folder. The SQL DLL files locate in the installed PostgreSQL path like "C:\Program Files\PostgreSQL\16\bin". 
+    - Use following CMD lines to copy all the DLL files of PostgreSQL, OpenVINO Runtime, TBB and openvino-genai into the release folder. The SQL DLL files locate in the default path, "C:\Program Files\PostgreSQL\16\bin". 
     - <INSTALL_DIR> below refers to the extraction location of OpenVINO Runtime.
     ```bat
+    cd openvino.genai
     xcopy "C:\Program Files\PostgreSQL\16\bin\*.dll" ".\build\samples\cpp\rag_sample\Release" /s /i
     xcopy ".\build\openvino_genai\*.dll" ".\build\samples\cpp\rag_sample\Release" /s /i
     xcopy "<INSTALL_DIR>\runtime\bin\intel64\Release\*.dll" ".\build\samples\cpp\rag_sample\Release" /s /i

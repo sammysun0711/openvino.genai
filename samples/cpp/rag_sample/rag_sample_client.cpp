@@ -7,6 +7,11 @@
 #include "iostream"
 #include "json.hpp"
 using json = nlohmann::json;
+namespace fs = std::filesystem;
+bool fileExists(const std::string& path) {
+    std::ifstream file(path.c_str());
+    return file.good();
+}
 
 void custom_sleep(int seconds) {
 #ifdef _WIN32
@@ -74,9 +79,15 @@ int main() {
             }
         } else if (command == "embeddings") {
             std::cout << "load json\n";
-
-            // test only
-            std::ifstream f("../../../../../samples/cpp/rag_sample/document_data.json");
+            // use the json file to test the embedding module
+            std::string path = "./samples/cpp/rag_sample/document_data.json";
+            if (fileExists(path)) {
+                std::cout << "Succeed to read the ./samples/cpp/rag_sample/document_data.json file." << std::endl;
+            } else {
+                // TODO: get the path of exe to enable reading the json file in any other paths to run the exe.
+                std::cout << "Failed to read ./samples/cpp/rag_sample/document_data.json file, \n Please run the .\\build\\samples\\cpp\\rag_sample\\Release\\rag_sample_client.exe in the path of openvino.genai" << std::endl;
+            }
+            std::ifstream f(path);
             json data = json::parse(f);
             auto embeddings = cli.Post("/embeddings", data.dump(), "application/json");
             if (embeddings->status == httplib::StatusCode::OK_200) {
