@@ -1,7 +1,9 @@
 # RAG Sample Python Client
 ### 1. Setup Environment
+Download and Install Python. [Python 3.11.9](https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe) is tested on Windows.
 ```bash
-conda create -n rag-client python=3.10
+python -m venv rag-client
+rag-client\Scripts\activate
 pip install langchain langchain_community unstructured markdown
 ```
 

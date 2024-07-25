@@ -24,35 +24,36 @@ Please set the environment variable for hf-mirror, if optimum-cli failed to down
 ### Setup of PostgreSQL and Pgvector
 
 #### PostgreSQL
-To install PostgreSQL on Windows, you follow these steps:
-
-1. Download PostgreSQL Installer for Windows: 
+Three steps to install PostgreSQL on Windows.
+1. Download PostgreSQL Installer for Windows
    Download `postgresql 16.3` from [PostgreSQL installers on the EnterpriseDB](https://www.enterprisedb.com/downloads/postgres-postgresql-downloads). postgresql-16.3-2-windows-x64.exe is tested(367MB).
-2. Install PostgreSQL using the installer. Besides, many Select-Next for default setting, the key steps are to `create password` and `uncheck Stack Builder`. The screenshots of PostgreSQL graphical installation wizard refer to [postgresqltutorial](https://www.postgresqltutorial.com/postgresql-getting-started/install-postgresql/) and [guide from enterprisedb](https://www.enterprisedb.com/docs/supported-open-source/postgresql/installing/windows/). (old version PostgreSQL)
+2. Install PostgreSQL using the installer 
+   Besides, many Select-Next for default setting, the key steps are to `create password` and `uncheck Stack Builder`. 
+   The screenshots of PostgreSQL graphical installation wizard refer to [postgresqltutorial](https://www.postgresqltutorial.com/postgresql-getting-started/install-postgresql/) and [guide from enterprisedb](https://www.enterprisedb.com/docs/supported-open-source/postgresql/installing/windows/). (old version PostgreSQL)
    
    <details>
    <summary>Click to expand the steps for PostgreSQL 16.3</summary>
-
-   1) Double-click on the installer file (may need to run as Administrator)
-   2) Select Next. The Installation Directory window opens.
-   3) Select Next. Accept the default installation directory, or specify a location.
-   4) Select components: `Uncheck Stack Builder`. Select Next.
-   5) Select Next. Accept the default location. 
-   6) Enter the password for the database superuser (postgres). After entering the password, retype for confirmation. Select Next.
-   7) Select Next. Default port number: 5432. 
-   8) Select Next. Select the default locale for the PostgreSQL server.
-   9) Select Next. Review the settings.
-   10) Select Next. The wizard informs: "Ready to install". 
-   11) The installation may take a few minutes to complete. 
-   12) Click Finish. Complete installation.
-
+   <ol style="list-style-type: decimal;">
+   <li>Double-click on the installer file (may need to run as Administrator)</li>
+   <li>Select Next. The Installation Directory window opens.</li>
+   <li>Select Next. Accept the default installation directory, or specify a location.</li>
+   <li>Select components: `Uncheck Stack Builder`. Select Next.</li>
+   <li>Select Next. Accept the default location. </li>
+   <li>Enter the password for the database superuser (postgres). After entering the password, retype for confirmation. Select Next.</li>
+   <li>Select Next. Default port number: 5432.</li>
+   <li>Select Next. Select the default locale for the PostgreSQL server.</li>
+   <li>Select Next. Review the settings.</li>
+   <li>Select Next. The wizard informs: "Ready to install".</li>
+   <li>The installation may take a few minutes to complete.</li>
+   <li>Click Finish. Complete installation.</li>
+   </ol>
    </details> 
 
 3. Test with `SQL Shell`  
     <details>
     <summary>Click to expand the logging</summary>
     
-    Open `SQL Shell` from Windows Search Bar. 'Enter' to set Server, Database, Port, Username as default and type 'openvino' for Password.
+    Open `SQL Shell` from Windows Search Bar. 'Enter' to set Server, Database, Port, Username as default and type your Password.
     ```bat
     Server [localhost]:
     Database [postgres]:
@@ -68,58 +69,86 @@ To install PostgreSQL on Windows, you follow these steps:
     </details> 
 
 
-#### [pgvector](https://github.com/pgvector/pgvector.git)
+#### Pgvector
 Open-source vector similarity search for Postgres
+Two steps for pgvector:
+1. Build and install pgvector
+   Download and install [Visual Studio 2022 Community](https://visualstudio.microsoft.com/downloads/). The installation must include the Desktop development with C++ workload, and the C++ MFC for latest v143 build tools (x86 & x64) optional component. Refer to [Install C and C++ support in Visual Studio](https://learn.microsoft.com/en-us/cpp/build/vscpp-step-0-installation?view=msvc-170).
+   Run `Developer Command Prompt for VS 2022` as Administrator, then use nmake to build and install pgvector:
+    ```bat
+    set "PGROOT=C:\Program Files\PostgreSQL\16"
+    cd %TEMP%
+    git clone --branch v0.7.3 https://github.com/pgvector/pgvector.git
+    cd pgvector
+    nmake /F Makefile.win
+    nmake /F Makefile.win install
+    ```
+2. Enable pgvector extension in Postgres: 
+   run `SQL Shell` from Windows Search Bar and type `CREATE EXTENSION vector;`.
+   (do this once in each database where you want to use it)
+    <details>
+    <summary>Click to expand the logging of SQL Shell</summary>
 
-For Windows, Ensure C++ support in Visual Studio 2022 is installed, then use nmake to build in Command Prompt for VS 2022(run as Administrator):
-```bat
-set "PGROOT=C:\Program Files\PostgreSQL\16"
-cd %TEMP%
-git clone --branch v0.7.3 https://github.com/pgvector/pgvector.git
-cd pgvector
-nmake /F Makefile.win
-nmake /F Makefile.win install
-```
-Enable the extension (do this once in each database where you want to use it), run `SQL Shell` from Windows Search Bar with
-```bat
-CREATE EXTENSION vector;
-```
-Printing `CREATE EXTENSION` shows successful setup of Pgvector.
+    Open `SQL Shell` from Windows Search Bar. 'Enter' to set Server, Database, Port, Username as default and type your Password.
+    ```bat
+    Server [localhost]:
+    Database [postgres]:
+    Port [5432]:
+    Username [postgres]:
+    Password for user postgres:
 
-#### [pgvector-cpp](https://github.com/pgvector/pgvector-cpp)
-pgvector support for C++ (supports libpqxx). 
-The headers(pqxx.hpp, vector.hpp, halfvec.hpp) are copied into the local folder rag_sample\include.
-Our pipeline do the vector similarity search for the chunks embeddings in PostgreSQL, based on pgvector-cpp.
+    psql (16.3)
+    Type "help" for help.
 
-### Install OpenVINO, VS2022 and Build this pipeline
+    postgres=# CREATE EXTENSION vector;
+    CREATE EXTENSION
+    postgres=#
+    ```
+    Printing `CREATE EXTENSION` shows successful setup of Pgvector.
+    </details> 
 
-Download [2024.2 release](https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.2/windows/) from OpenVINO™ archives*. This OV built package is for C++ OpenVINO pipeline, no need to build the source code.
-Install latest [Visual Studio 2022 Community](https://visualstudio.microsoft.com/downloads/) for the C++ dependencies and LLM C++ pipeline editing.
 
+### Setup and Build OpenVINO GenAI
 #### Windows
-
-Extract the zip file in any location and set the environment variables with dragging this `setupvars.bat` in the terminal `Command Prompt`. `setupvars.ps1` is used for terminal `PowerShell`.`<INSTALL_DIR>` below refers to the extraction location.
+1. Download and Install VS2022, Cmake and Python:
+   - VS2022: Install latest [Visual Studio 2022 Community](https://visualstudio.microsoft.com/downloads/) and Install C and C++ support in Visual Studio.
+   - Cmake: If Cmake not installed in the terminal `Command Prompt`, please [download](https://cmake.org/download/) and install Cmake or use the terminal `Developer Command Prompt for VS 2022` instead.
+   - Python: the source code building of thirdparty/openvino_tokenizers needs Python3. ([Python 3.11.9](https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe) is tested)
+2. Download OpenVINO Runtime:
+Download [2024.3 rc2](https://storage.openvinotoolkit.org/repositories/openvino/packages/pre-release/2024.3.0rc2/windows/) from OpenVINO™ archives*. C++ GenAI pipeline will use the OpenVINO Runtime Dynamic-link library(dll) from the downloaded zip file.
+3. Build and install OpenVINO GenAI:
+Extract the zip file in any location and set the environment variables with dragging this `setupvars.bat` in the terminal `Command Prompt`. (`setupvars.ps1` is used for terminal `PowerShell`).
+`<INSTALL_DIR>` below refers to the extraction location.
 Run the following CMD in the terminal `Command Prompt`.
+    ```bat
+    <INSTALL_DIR>\setupvars.bat
+    cd openvino.genai
+    git submodule update --init
+    cmake -S .\ -B .\build\ && cmake --build .\build\ --config Release -j8
+    dir .\build\samples\cpp\rag_sample\Release\rag_sample_client.exe .\build\samples\cpp\rag_sample\Release\rag_sample_server.exe
+    ```
+    Notice:
+    - Once the cmake finishes, check rag_sample_client.exe and rag_sample_server.exe in the relative path `.\build\samples\cpp\rag_sample\Release`. 
+    - If Cmake completed without errors, but not find exe, please open the `.\build\OpenVINOGenAI.sln` in VS2022, and set the solution configuration as Release instead of Debug, Then build the llm project within VS2022 again.
+    - openvino_tokenizers:
+     For development, we download source code of openvino_tokenizers in thirdparty folder(`git submodule update --init`) and build the openvino_tokenizers with openvino-genai. it needs several minutes to build. Set 8 for -j option to specify the number of parallel jobs. 
+     In the deployment, the rag-sample could download [openvino_genai package](https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2024.2/windows) which includes all the DLLs of the openvino_tokenizers, openvino_genai and openvino runtime(must be the same specific version).
 
-```bat
-git submodule update --init
-<INSTALL_DIR>\setupvars.bat
-cd openvino.genai
-cmake -S .\ -B .\build\ && cmake --build .\build\ --config Release -j8
-cd .\build\samples\cpp\rag_sample\Release
-```
-Notice:
-- Install on Windows: Copy all the DLL files of PostgreSQL, OpenVINO and tbb and openvino-genai into the release folder. The SQL DLL files locate in the installed PostgreSQL path like "C:\Program Files\PostgreSQL\16\bin". 
-- If cmake not installed in the terminal `Command Prompt`, please use the terminal `Developer Command Prompt for VS 2022` instead.
-- The ov tokenizer in the third party needs several minutes to build. Set 8 for -j option to specify the number of parallel jobs. 
-- Once the cmake finishes, check rag_sample_client.exe and rag_sample_server.exe in the relative path `.\build\samples\cpp\rag_sample\Release`. 
-- If Cmake completed without errors, but not find exe, please open the `.\build\OpenVINOGenAI.sln` in VS2022, and set the solution configuration as Release instead of Debug, Then build the llm project within VS2022 again.
-
+    Install on Windows: 
+    - Copy all the DLL files of PostgreSQL, OpenVINO Runtime, TBB and openvino-genai into the release folder. The SQL DLL files locate in the installed PostgreSQL path like "C:\Program Files\PostgreSQL\16\bin". 
+    - <INSTALL_DIR> below refers to the extraction location of OpenVINO Runtime.
+    ```bat
+    xcopy "C:\Program Files\PostgreSQL\16\bin\*.dll" ".\build\samples\cpp\rag_sample\Release" /s /i
+    xcopy ".\build\openvino_genai\*.dll" ".\build\samples\cpp\rag_sample\Release" /s /i
+    xcopy "<INSTALL_DIR>\runtime\bin\intel64\Release\*.dll" ".\build\samples\cpp\rag_sample\Release" /s /i
+    xcopy "<INSTALL_DIR>\3rdparty\tbb\bin\*.dll" ".\build\samples\cpp\rag_sample\Release" /s /i
+    ```
 ### Run:
 #### Launch RAG Server
-`rag_sample_server.exe --llm_model_path TinyLlama-1.1B-Chat-v1.0 --llm_device CPU --embedding_model_path bge-large-zh-v1.5 --embedding_device CPU  --db_connection "user=postgres host=localhost password=openvino port=5432 dbname=postgres"`
 Please use the password you set in the PostgreSQL installation wizard.
 ```bat
+cd openvino.genai
+.\build\samples\cpp\rag_sample\Release\rag_sample_server.exe --llm_model_path TinyLlama-1.1B-Chat-v1.0 --llm_device CPU --embedding_model_path bge-large-zh-v1.5 --embedding_device CPU  --db_connection "user=postgres host=localhost password=openvino port=5432 dbname=postgres"
 Usage: rag_sample_server.exe [options]
 
 options:
@@ -138,8 +167,9 @@ options:
   --verbose                BOOL        Display verbose output including config/system/performance info
 ```
 #### Lanuch RAG Client
-`rag_sample_client.exe`
 ```bat
+cd openvino.genai
+.\build\samples\cpp\rag_sample\Release\rag_sample_client.exe
 Init client
 Init client finished
 Usage:  [options]
@@ -160,7 +190,7 @@ To enable Unicode characters for Windows cmd open `Region` settings from `Contro
 
 Discrete GPUs (dGPUs) usually provide better performance compared to CPUs. It is recommended to run larger models on a dGPU with 32GB+ RAM. For example, the model meta-llama/Llama-2-13b-chat-hf can benefit from being run on a dGPU. Modify the source code to change the device for inference to the GPU.
 
-See https://github.com/openvinotoolkit/openvino.genai/blob/master/src/README.md#supported-models for the list of supported models.
+See the list of [supported models](https://github.com/openvinotoolkit/openvino.genai/blob/releases/2024/2/src/docs/SUPPORTED_MODELS.md).
 
 #### Lanuch python Client
 Use python client to send the message of DB init and send the document chunks to DB for embedding and storing.
