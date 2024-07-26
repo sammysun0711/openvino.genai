@@ -242,10 +242,14 @@ options:
 
 Here is a sample video to demonstrate RAG sample use case on client platform.
 
+Here is a sample video to demonstrate RAG sample use case on client platform.
+
 https://github.com/sammysun0711/openvino.genai/assets/102195992/c596cd86-dc3c-438f-9fa7-d6395951cec5
 
 
-**Notice:**
+Notice:
+We use [cpp-httplib](https://github.com/yhirose/cpp-httplib) for connection. Larger LLM and longer max_new_tokens need more connection time(default 100 second in rag_sample_client.cpp).
+Besides TinyLlama-1.1B-Chat-v1.0, Qwen2-7B-Instruct is also tested.
 
 - We use [cpp-httplib](https://github.com/yhirose/cpp-httplib) for connection. Larger LLM and longer max_new_tokens need more connection time (default timeout value is 100 second used in rag_sample_client.cpp).
 - TinyLlama-1.1B-Chat-v1.0, Qwen2-7B-Instruct is also tested.
