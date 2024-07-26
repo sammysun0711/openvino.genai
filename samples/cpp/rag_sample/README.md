@@ -271,6 +271,7 @@ embedding infer successed
 #### Complete Usage of RAG Sample
 Here is a sample video to demonstrate RAG sample use case on client platform.
 https://github.com/sammysun0711/openvino.genai/assets/102195992/c596cd86-dc3c-438f-9fa7-d6395951cec5
+
 The video shows the complete process of RAG:
 1. C++ RAG Server: Init server
 2. Python client: 
