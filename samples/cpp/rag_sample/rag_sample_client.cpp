@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <filesystem>
-
+// #include <windows.h>
 #include "httplib.h"
 #include "iostream"
 #include "json.hpp"
+
 using json = nlohmann::json;
-namespace fs = std::filesystem;
+
 bool fileExists(const std::string& path) {
     std::ifstream file(path.c_str());
     return file.good();
@@ -78,23 +79,35 @@ int main() {
                 std::cout << "Status: " << httplib::status_message(init_embeddings->status) << std::endl;
             }
         } else if (command == "embeddings") {
-            std::cout << "load json\n";
-            // use the json file to test the embedding module
-            std::string path = "./samples/cpp/rag_sample/document_data.json";
-            if (fileExists(path)) {
-                std::cout << "Succeed to read the ./samples/cpp/rag_sample/document_data.json file." << std::endl;
-            } else {
-                // TODO: get the path of exe to enable reading the json file in any other paths to run the exe.
-                std::cout << "Failed to read ./samples/cpp/rag_sample/document_data.json file, \n Please run the .\\build\\samples\\cpp\\rag_sample\\Release\\rag_sample_client.exe in the path of openvino.genai" << std::endl;
-            }
-            std::ifstream f(path);
-            json data = json::parse(f);
-            auto embeddings = cli.Post("/embeddings", data.dump(), "application/json");
-            if (embeddings->status == httplib::StatusCode::OK_200) {
-                std::cout << embeddings->body << "\n";
-            } else {
-                std::cout << "Embeddings failed\n";
-                std::cout << "Status: " << httplib::status_message(embeddings->status) << std::endl;
+            std::cout << "This is the unit test for embeddings: \n";
+            std::cout << "Path of test json file: \n";
+            std::string path;
+            std::getline(std::cin, path);
+            if (path == "Stop!") 
+                break;
+            while (true) {
+                getline(std::cin, path);
+                if (path.length() != 0) {
+                    if (path == "exit")
+                        break;
+                    if (fileExists(path)) {
+                        std::cout << "Succeed to read the json file." << std::endl;
+                    } else {
+                        std::cout << "Failed to read json file" << std::endl;
+                    }  
+                         
+                    std::cout << "path: " << path << "\n";
+
+                    std::ifstream f(path);
+                    json data = json::parse(f);
+                    auto embeddings = cli.Post("/embeddings", data.dump(), "application/json");
+                    if (embeddings->status == httplib::StatusCode::OK_200) {
+                        std::cout << embeddings->body << "\n";
+                    } else {
+                        std::cout << "Embeddings failed\n";
+                        std::cout << "Status: " << httplib::status_message(embeddings->status) << std::endl;
+                    }
+                }
             }
         } else if (command == "llm_init") {
             auto llm_init = cli.Post("/llm_init", "", "");

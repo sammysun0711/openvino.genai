@@ -8,11 +8,28 @@ pip install langchain langchain_community unstructured markdown
 ```
 
 ### 2. Run script with langchain for text loader/split and sent to RAG server
-```python
+
+Usage -h
+```bat
+usage: client_get_chunks_embeddings.py [-h] --docs DOCS [DOCS ...] [--spliter {Character,RecursiveCharacter,Markdown,Chinese}]
+                                       [--chunk_size CHUNK_SIZE] [--chunk_overlap CHUNK_OVERLAP] [--host HOST] [--port PORT]
+
+Process documents and send data to server.
+
+options:
+  -h, --help                      show this help message and exit
+  --docs DOCS [DOCS ...]          List of documents to process (e.g., test_document_README.md)
+  --spliter {Character,RecursiveCharacter,Markdown,Chinese}
+                                  Chunking method
+  --chunk_size CHUNK_SIZE         Chunk size for processing
+  --chunk_overlap CHUNK_OVERLAP   Chunk overlap for smoother processing
+  --host HOST                     Server host address
+  --port PORT                     Server port number
+  ```
+### 3. Example output: 
+```bash
 python client_get_chunks_embeddings.py --docs test_document_README.md
 ```
-
-### 3. Example output: 
 ```bash
 get chunks from document with langchain's loader and spliter
 loader and spliter finished, len(chunks) is:  15
