@@ -153,7 +153,7 @@ Run the following CMD in the terminal `Command Prompt`.
     xcopy "<INSTALL_DIR>\runtime\bin\intel64\Release\*.dll" ".\build\samples\cpp\rag_sample\Release" /s /i
     xcopy "<INSTALL_DIR>\3rdparty\tbb\bin\*.dll" ".\build\samples\cpp\rag_sample\Release" /s /i
     ```
-### Run:
+### Usage:
 #### Launch RAG Server
 Please use the password you set in the PostgreSQL installation wizard.
 ```bat
@@ -176,6 +176,30 @@ options:
   --repeat_penalty         N           Specify penalize sequence of tokens (default: 1.0, means no repeat penalty)
   --verbose                BOOL        Display verbose output including config/system/performance info
 ```
+
+#### Lanuch Python Client
+Use python client to send the message of DB init and send the document chunks to DB for embedding and storing.
+Please check the setup of python environment with samples\python\rag_sample\README.md
+samples\python\rag_sample\client_get_chunks_embeddings.py
+
+```bat
+cd samples\python\rag_sample\
+python client_get_chunks_embeddings.py --docs test_document_README.md
+```
+Output
+```bat
+Start to load and split document to get chunks from document via Langchain
+loader and spliter finished, len(chunks) is:  15
+get_chunks completed! Number of chunks: 15
+Init client
+
+response.status:  200
+Server response: Init db success.
+response.status:  200
+Server response: insert success
+finished connnection  
+```
+
 #### Lanuch RAG Client
 ```bat
 cd openvino.genai
@@ -196,60 +220,70 @@ options:
   health_cheak
   exit
 ```
-To enable Unicode characters for Windows cmd open `Region` settings from `Control panel`. `Administrative`->`Change system locale`->`Beta: Use Unicode UTF-8 for worldwide language support`->`OK`. Reboot.
-
-See the list of [supported models](https://github.com/openvinotoolkit/openvino.genai/blob/releases/2024/2/src/docs/SUPPORTED_MODELS.md).
-
-#### Lanuch python Client
-Use python client to send the message of DB init and send the document chunks to DB for embedding and storing.
-
-samples\python\rag_sample\client_get_chunks_embeddings.py
-
+  We provide the unit test for embedding with json file.
+  <details>
+  <summary>Click to expand the logging of embedding unit test. </summary>
+  
+  User need to type the path of existing json file: absolute path or relate path `.\samples\cpp\rag_sample\document_data.json` 
 ```bat
-conda create -n rag-client python=3.10
-pip install langchain langchain_community unstructured markdown
-cd samples\python\rag_sample\
-python client_get_chunks_embeddings.py --docs test_document_README.md
-
-Start to load and split document to get chunks from document via Langchain
-loader and spliter finished, len(chunks) is:  15
-get_chunks completed! Number of chunks: 15
+.\build\samples\cpp\rag_sample\Release\rag_sample_client.exe
 Init client
-
-response.status:  200
-Server response: Init db success.
-response.status:  200
-Server response: insert success
-finished connnection
-```
-
-```bat
-usage: client_get_chunks_embeddings.py [-h] --docs DOCS [DOCS ...] [--spliter {Character,RecursiveCharacter,Markdown,Chinese}]
-                                       [--chunk_size CHUNK_SIZE] [--chunk_overlap CHUNK_OVERLAP] [--host HOST] [--port PORT]
-
-Process documents and send data to server.
+Init client finished
+Usage:  [options]
 
 options:
-  -h, --help                      show this help message and exit
-  --docs DOCS [DOCS ...]          List of documents to process (e.g., test_document_README.md)
-  --spliter {Character,RecursiveCharacter,Markdown,Chinese}
-                                  Chunking method
-  --chunk_size CHUNK_SIZE         Chunk size for processing
-  --chunk_overlap CHUNK_OVERLAP   Chunk overlap for smoother processing
-  --host HOST                     Server host address
-  --port PORT                     Server port number
-  ```
+  help
+  init_embeddings
+  embeddings
+  db_retrieval
+  db_retrieval_llm
+  embeddings_unload
+  llm_init
+  llm
+  llm_unload
+  health_cheak
+  exit
+init_embeddings
+Init embeddings success.
+embeddings
+This is the unit test for embeddings:
+Path of test json file:
+.\samples\cpp\rag_sample\document_data.json
+Succeed to read the json file.
+path: .\samples\cpp\rag_sample\document_data.json
+Embeddings success
+```
+Example output of server:
+```bat
+Init http server
+Load embedding model successed
+Load tokenizer model successed
+Init embedding models successed
+get json_file successed
+get inputs successed
+size of queries: 15
+Start Embedding
+shape of embedding_results: (15, 1024)
+embedding infer successed
+```
+  </details> 
 
+#### Complete Usage of RAG Sample
 Here is a sample video to demonstrate RAG sample use case on client platform.
-
-Here is a sample video to demonstrate RAG sample use case on client platform.
-
 https://github.com/sammysun0711/openvino.genai/assets/102195992/c596cd86-dc3c-438f-9fa7-d6395951cec5
-
+The video shows the complete process of RAG:
+1. C++ RAG Server: Init server
+2. Python client: 
+   - Init DB
+   - Init Embedding
+   - Embedding
+   - store embedding output into DB 
+3. C++ RAG client:
+   - Init LLM
+   - DB retrieval
 
 Notice:
-We use [cpp-httplib](https://github.com/yhirose/cpp-httplib) for connection. Larger LLM and longer max_new_tokens need more connection time(default 100 second in rag_sample_client.cpp).
-Besides TinyLlama-1.1B-Chat-v1.0, Qwen2-7B-Instruct is also tested.
-
-- We use [cpp-httplib](https://github.com/yhirose/cpp-httplib) for connection. Larger LLM and longer max_new_tokens need more connection time (default timeout value is 100 second used in rag_sample_client.cpp).
-- TinyLlama-1.1B-Chat-v1.0, Qwen2-7B-Instruct is also tested.
+- To enable Unicode characters for Windows cmd open `Region` settings from `Control panel`. `Administrative`->`Change system locale`->`Beta: Use Unicode UTF-8 for worldwide language support`->`OK`. Reboot.
+- We use [cpp-httplib](https://github.com/yhirose/cpp-httplib) for connection. Larger LLM and longer max_new_tokens need more connection time(default 100 second in rag_sample_client.cpp).
+- Besides TinyLlama-1.1B-Chat-v1.0, Qwen2-7B-Instruct is also tested.
+- See the list of [supported models](https://github.com/openvinotoolkit/openvino.genai/blob/releases/2024/2/src/docs/SUPPORTED_MODELS.md).
