@@ -124,7 +124,7 @@ Two steps for pgvector:
    - Cmake: If Cmake not installed in the terminal `Command Prompt`, please [download](https://cmake.org/download/) and install Cmake or use the terminal `Developer Command Prompt for VS 2022` instead.
    - Python: the source code building of thirdparty/openvino_tokenizers needs Python3. ([Python 3.11.9](https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe) is tested)
 2. Download OpenVINO Runtime:
-Download [2024.3 rc2](https://storage.openvinotoolkit.org/repositories/openvino/packages/pre-release/2024.3.0rc2/windows/) from OpenVINO™ archives*. C++ GenAI pipeline will use the OpenVINO Runtime Dynamic-link library(dll) from the downloaded zip file.
+Download [2024.3 rc2](https://storage.openvinotoolkit.org/repositories/openvino/packages/pre-release/2024.3.0rc2/windows/) from *OpenVINO™ archives*. C++ GenAI pipeline will use the OpenVINO Runtime Dynamic-link library(dll) from the downloaded zip file.
 3. Build and install OpenVINO GenAI:
 Extract the zip file in any location and set the environment variables with dragging this `setupvars.bat` in the terminal `Command Prompt`. (`setupvars.ps1` is used for terminal `PowerShell`).
 `<INSTALL_DIR>` below refers to the extraction location.
@@ -145,13 +145,13 @@ Run the following CMD in the terminal `Command Prompt`.
 
     Install on Windows: 
     - Use following CMD lines to copy all the DLL files of PostgreSQL, OpenVINO Runtime, TBB and openvino-genai into the release folder. The SQL DLL files locate in the default path, "C:\Program Files\PostgreSQL\16\bin". 
-    - <INSTALL_DIR> below refers to the extraction location of OpenVINO Runtime.
+    - <INSTALL_DIR> below refers to the extraction location of *OpenVINO™ archives* for OpenVINO Runtime.
     ```bat
     cd openvino.genai
     xcopy "C:\Program Files\PostgreSQL\16\bin\*.dll" ".\build\samples\cpp\rag_sample\Release" /s /i
     xcopy ".\build\openvino_genai\*.dll" ".\build\samples\cpp\rag_sample\Release" /s /i
     xcopy "<INSTALL_DIR>\runtime\bin\intel64\Release\*.dll" ".\build\samples\cpp\rag_sample\Release" /s /i
-    xcopy "<INSTALL_DIR>\3rdparty\tbb\bin\*.dll" ".\build\samples\cpp\rag_sample\Release" /s /i
+    xcopy "<INSTALL_DIR>\runtime\3rdparty\tbb\bin\*.dll" ".\build\samples\cpp\rag_sample\Release" /s /i
     ```
 ### Usage:
 #### Launch RAG Server
@@ -178,12 +178,13 @@ options:
 ```
 
 #### Lanuch Python Client
-Use python client to send the message of DB init and send the document chunks to DB for embedding and storing.
+Launch 2nd command line terminal, use python client to send the message of DB init and send the document chunks to DB for embedding and storing.
 Please check the setup of python environment with samples\python\rag_sample\README.md
 samples\python\rag_sample\client_get_chunks_embeddings.py
 
 ```bat
-cd samples\python\rag_sample\
+cd openvino.genai\samples\python\rag_sample\
+pip install langchain langchain_community unstructured markdown
 python client_get_chunks_embeddings.py --docs test_document_README.md
 ```
 Output
@@ -201,6 +202,7 @@ finished connnection
 ```
 
 #### Lanuch RAG Client
+Launch 3rd command line terminal
 ```bat
 cd openvino.genai
 .\build\samples\cpp\rag_sample\Release\rag_sample_client.exe
@@ -280,10 +282,10 @@ The video shows the complete process of RAG:
    - Init DB
    - Init Embedding
    - Embedding
-   - store embedding output into DB 
+   - Store embedding output into DB 
 3. C++ RAG client:
    - Init LLM
-   - DB retrieval
+   - DB Documents Retrival + Chat with LLM
 
 Notice:
 - To enable Unicode characters for Windows cmd open `Region` settings from `Control panel`. `Administrative`->`Change system locale`->`Beta: Use Unicode UTF-8 for worldwide language support`->`OK`. Reboot.
