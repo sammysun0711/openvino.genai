@@ -260,7 +260,8 @@ llm_init
 Init llm success.
 ```
 Notice: Please type "exit" to continue to test "llm_init" after successful embedding. 
-Example output of server:
+
+Corresponding server output:
 ```bat
 Init http server
 Port 7890 on IP address 127.0.0.1 is free for OGS.
