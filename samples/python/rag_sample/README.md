@@ -23,8 +23,8 @@ options:
                                   Chunking method
   --chunk_size CHUNK_SIZE         Chunk size for processing
   --chunk_overlap CHUNK_OVERLAP   Chunk overlap for smoother processing
-  --host HOST                     Server host address
-  --port PORT                     Server port number
+  --host HOST                     Server host address default="127.0.0.1"
+  --port PORT                     Server port number default=7890
   ```
 ### 3. Example output: 
 ```bash

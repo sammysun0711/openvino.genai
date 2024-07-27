@@ -22,6 +22,7 @@ public:
         std::string embedding_model_path = "";
         std::string embedding_device = "CPU";
         std::string db_connection = "user=postgres host=localhost password=openvino port=5432 dbname=postgres";
+        std::string rag_connection = "127.0.0.1:7890";
         int max_new_tokens = 32;
         bool do_sample = false;
         int top_k = 0;
@@ -60,6 +61,7 @@ public:
             << "  --embedding_model_path   PATH        Directory contains OV Bert model and tokenizers\n"
             << "  --embedding_device       STRING      Specify which device used for bert inference\n"
             << "  --db_connection          STRING      Specify which user, host, password, port, dbname\n"
+            << "  --rag_connection         STRING      Specify host:port(default: \"127.0.0.1:7890\")\n"
             << "  --max_new_tokens         N           Specify max new generated tokens (default: 32)\n"
             << "  --do_sample              BOOL        Specify whether do random sample (default: False)\n"
             << "  --top_k                  N           Specify top-k parameter for sampling (default: 0)\n"
@@ -87,6 +89,8 @@ public:
                 args.llm_device = argv[++i];
             } else if (arg == "--db_connection") {
                 args.db_connection = argv[++i];
+            } else if (arg == "--rag_connection") {
+                args.rag_connection = argv[++i];
             } else if (arg == "--embedding_model_path") {
                 args.embedding_model_path = argv[++i];
             } else if (arg == "--embedding_device") {

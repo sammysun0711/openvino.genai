@@ -73,7 +73,36 @@ int main(int argc, char** argv) try {
     svr->Post("/db_retrieval", handle_db_retrieval);
     svr->Post("/db_retrieval_llm", handle_db_retrieval_llm);
 
-    svr->listen("127.0.0.1", 7890);
+    // Find the position of the colon
+    std::string rag_connection = server_context.args.rag_connection;
+    std::string ipAddress;
+    int port;
+
+    size_t pos = rag_connection.find(':');
+
+    // Extract the IP address
+    if (pos != std::string::npos) {
+        ipAddress = rag_connection.substr(0, pos);
+    } else {
+        std::cerr << "Invalid connection string format" << std::endl;
+        return 1;
+    }
+
+    // Extract the port number
+    std::istringstream ss(rag_connection.substr(pos + 1));
+    if (!(ss >> port)) {
+        std::cerr << "Invalid port number" << std::endl;
+        return 1;
+    }
+
+    if (!svr->bind_to_port(ipAddress.c_str(), port)) {
+        std::cout << "Port " << port << " on IP address " << ipAddress << " is already in use. Please use netstat -an | findstr \"127.0.0.1:\" to check the port usage for ipAddress \"127.0.0.1\"" << std::endl;
+    } else {
+        std::cout << "Port " << port << " on IP address " << ipAddress << " is free for OGS." << std::endl;
+    }
+    
+    svr->listen_after_bind();
+
 } catch (const std::exception& error) {
     std::cerr << error.what() << '\n';
     return EXIT_FAILURE;

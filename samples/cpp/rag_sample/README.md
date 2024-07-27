@@ -168,6 +168,7 @@ options:
   --embedding_model_path   PATH        Directory contains OV Bert model and tokenizers
   --embedding_device       STRING      Specify which device used for bert inference
   --db_connection          STRING      Specify which user, host, password, port, dbname
+  --rag_connection         STRING      Specify host:port(default: "127.0.0.1:7890")
   --max_new_tokens         N           Specify max new generated tokens (default: 32)
   --do_sample              BOOL        Specify whether do random sample (default: False)
   --top_k                  N           Specify top-k parameter for sampling (default: 0)
@@ -252,10 +253,15 @@ Path of test json file:
 Succeed to read the json file.
 path: .\samples\cpp\rag_sample\document_data.json
 Embeddings success
+exit
+llm_init
+Init llm success.
 ```
+Notice: Please type "exit" to continue to test "llm_init" after successful embedding. 
 Example output of server:
 ```bat
 Init http server
+Port 7890 on IP address 127.0.0.1 is free for OGS.
 Load embedding model successed
 Load tokenizer model successed
 Init embedding models successed
