@@ -18,18 +18,30 @@ This example showcases for Retrieval-Augmented Generation based on text-generati
 ### Download and convert the model and tokenizers
 
 The `--upgrade-strategy eager` option is needed to ensure `optimum-intel` is upgraded to the latest version.
-Windows:
-
+Windows:([Python 3.11.9](https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe) is tested)
+#### LLM
 ```sh
-conda create -n rag-sample python=3.10
-conda activate rag-sample
+python -m venv rag-sample
+rag-sample\Scripts\activate
 cd openvino.genai\samples\cpp\rag_sample
 python3 -m pip install --upgrade-strategy eager -r ../../requirements.txt
 set HF_ENDPOINT=https://hf-mirror.com
 optimum-cli export openvino --trust-remote-code --model TinyLlama/TinyLlama-1.1B-Chat-v1.0 TinyLlama-1.1B-Chat-v1.0
 ```
+#### Embedding
+BGE embedding is a general Embedding Model. The model is pre-trained using RetroMAE and trained on large-scale pair data using contrastive learning.
+For chinese:
+```
+Optimize the BGE embedding model's parameter precision when loading model to NPU device.
+Here we provide python script to download light-weight HF model "BAAI/bge-small-zh-v1.5" and generate one static embedding model for all devices.
+The script also contains the accuracy check on NPU.
+```sh
+rag-sample\Scripts\activate
+cd openvino.genai\samples\cpp\rag_sample
+python convert_ov_embedding.py
+```
 Notice:
-Please set the environment variable for hf-mirror, if optimum-cli failed to download model from HF with SSLError.
+- Please set the environment variable for hf-mirror, if optimum-cli failed to download model from HF with SSLError.
 ### Setup of PostgreSQL and Pgvector
 
 #### PostgreSQL
