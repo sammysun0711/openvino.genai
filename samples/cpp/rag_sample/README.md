@@ -30,18 +30,15 @@ optimum-cli export openvino --trust-remote-code --model TinyLlama/TinyLlama-1.1B
 ```
 #### Embedding
 BGE embedding is a general Embedding Model. The model is pre-trained using RetroMAE and trained on large-scale pair data using contrastive learning.
-For chinese:
-```
-Optimize the BGE embedding model's parameter precision when loading model to NPU device.
-Here we provide python script to download light-weight HF model "BAAI/bge-small-zh-v1.5" and generate one static embedding model for all devices.
-The script also contains the accuracy check on NPU.
+Here we provide python script `convert_ov_embedding.py` to download light-weight HF model `BAAI/bge-small-zh-v1.5` and generate one static embedding model for all devices.
+The script optimizes the BGE embedding model's parameter precision when loading model to NPU device and also contains the accuracy check on NPU.
 ```sh
 rag-sample\Scripts\activate
 cd openvino.genai\samples\cpp\rag_sample
 python convert_ov_embedding.py
 ```
 Notice:
-- Please set the environment variable for hf-mirror, if optimum-cli failed to download model from HF with SSLError.
+- Please set the environment variable for [hf-mirror](https://hf-mirror.com/) and try more times, if optimum-cli failed to download model from HF with SSLError.
 ### Setup of PostgreSQL and Pgvector
 
 #### PostgreSQL
