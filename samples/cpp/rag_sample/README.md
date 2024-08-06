@@ -20,7 +20,7 @@ This example showcases for Retrieval-Augmented Generation based on text-generati
 The `--upgrade-strategy eager` option is needed to ensure `optimum-intel` is upgraded to the latest version.
 Windows:([Python 3.11.9](https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe) is tested)
 #### LLM
-```sh
+```bat
 python -m venv rag-sample
 rag-sample\Scripts\activate
 cd openvino.genai\samples\cpp\rag_sample
@@ -32,13 +32,15 @@ optimum-cli export openvino --trust-remote-code --model TinyLlama/TinyLlama-1.1B
 BGE embedding is a general Embedding Model. The model is pre-trained using RetroMAE and trained on large-scale pair data using contrastive learning.
 Here we provide python script `convert_ov_embedding.py` to download light-weight HF model `BAAI/bge-small-zh-v1.5` and generate one static embedding model for all devices.
 The script optimizes the BGE embedding model's parameter precision when loading model to NPU device and also contains the accuracy check on NPU.
-```sh
+```bat
 rag-sample\Scripts\activate
 cd openvino.genai\samples\cpp\rag_sample
+pip install langchain langchain_community unstructured markdown sentence_transformers
 python convert_ov_embedding.py
 ```
 Notice:
 - Please set the environment variable for [hf-mirror](https://hf-mirror.com/) and try more times, if optimum-cli failed to download model from HF with SSLError.
+- If you want to deploy embeddings on NPU, please install latest [Intel® NPU Driver on Windows](https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html), Intel® NPU Driver - Windows* 32.0.100.2688 is tested.
 ### Setup of PostgreSQL and Pgvector
 
 #### PostgreSQL
@@ -92,7 +94,7 @@ Open-source vector similarity search for Postgres
 Two steps for pgvector:
 1. Build and install pgvector
    Download and install [Visual Studio 2022 Community](https://visualstudio.microsoft.com/downloads/). The installation must include the Desktop development with C++ workload, and the C++ MFC for latest v143 build tools (x86 & x64) optional component. Refer to [Install C and C++ support in Visual Studio](https://learn.microsoft.com/en-us/cpp/build/vscpp-step-0-installation?view=msvc-170).
-   Run `Developer Command Prompt for VS 2022` as Administrator, then use nmake to build and install pgvector:
+   Run `x64 Native Tools Command Prompt for VS 2022` as Administrator, then use nmake to build and install pgvector:
     ```bat
     set "PGROOT=C:\Program Files\PostgreSQL\16"
     cd %TEMP%
@@ -167,7 +169,7 @@ Run the following CMD in the terminal `Command Prompt`.
 Please use the password you set in the PostgreSQL installation wizard.
 ```bat
 cd openvino.genai
-.\build\samples\cpp\rag_sample\Release\rag_sample_server.exe --llm_model_path TinyLlama-1.1B-Chat-v1.0 --llm_device CPU --embedding_model_path bge-large-zh-v1.5 --embedding_device CPU  --db_connection "user=postgres host=localhost password=openvino port=5432 dbname=postgres"
+.\build\samples\cpp\rag_sample\Release\rag_sample_server.exe --llm_model_path TinyLlama-1.1B-Chat-v1.0 --llm_device CPU --embedding_model_path bge-small-zh-v1.5 --embedding_device CPU  --db_connection "user=postgres host=localhost password=openvino port=5432 dbname=postgres"
 Usage: rag_sample_server.exe [options]
 
 options:
@@ -190,11 +192,10 @@ options:
 #### Lanuch Python Client
 Launch 2nd command line terminal, use python client to send the message of DB init and send the document chunks to DB for embedding and storing.
 Please check the setup of python environment with samples\python\rag_sample\README.md
-samples\python\rag_sample\client_get_chunks_embeddings.py
 
 ```bat
+rag-sample\Scripts\activate
 cd openvino.genai\samples\python\rag_sample\
-pip install langchain langchain_community unstructured markdown
 python client_get_chunks_embeddings.py --docs test_document_README.md
 ```
 Output
