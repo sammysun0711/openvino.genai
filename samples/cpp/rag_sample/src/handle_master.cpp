@@ -32,12 +32,16 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
             std::cout << "req_llm.body: " << req_llm.body << "\n";
             std::string prompt = req_llm.body;
             server_context_ref.llm_state = State::RUNNING;
+
             auto config = server_context_ref.llm_pointer->get_generation_config();
             config.max_new_tokens = server_context_ref.args.max_new_tokens;
-            std::string response = server_context_ref.llm_pointer->generate(prompt, config);
-            server_context_ref.llm_state = State::IDLE;
-            std::cout << "response: " << response << "\n";
-            res_llm.set_content(response, "text/plain");
+   
+            auto streamer = [&server_context_ref](std::string subword) {
+                std::cout << "subword: " << subword << "\n";
+                server_context_ref.chat_buffer.push(subword);
+                return false;
+            };
+            server_context_ref.llm_pointer->generate(prompt, config, streamer);
         } else {
             res_llm.set_header("Access-Control-Allow-Origin", req_llm.get_header_value("Origin"));
             res_llm.set_content(
@@ -46,6 +50,22 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
         }
     };
     return handle_llm;
+}
+
+std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_handle_llm_streamer(
+    util::ServerContext& server_context_ref) {
+    const auto handle_llm_streamer = [&server_context_ref](const httplib::Request& req_llm, httplib::Response& res_llm) {
+        if (!server_context_ref.chat_buffer.empty()) {
+            res_llm.set_header("Access-Control-Allow-Origin", req_llm.get_header_value("Origin"));
+            res_llm.set_content(server_context_ref.chat_buffer.front(), "text/plain");
+            server_context_ref.chat_buffer.pop();
+        } else {
+            server_context_ref.llm_state = State::IDLE;
+            res_llm.set_header("Access-Control-Allow-Origin", req_llm.get_header_value("Origin"));
+            res_llm.set_content("zheshibiaozhifu","text/plain");
+        }
+    };
+    return handle_llm_streamer;
 }
 
 std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_handle_llm_unload(

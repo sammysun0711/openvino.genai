@@ -32,6 +32,9 @@ public:
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_llm(
         util::ServerContext& server_context_ref);
 
+    std::function<void(const httplib::Request&, httplib::Response&)> get_handle_llm_streamer(
+        util::ServerContext& server_context_ref);
+
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_llm_unload(
         util::ServerContext& server_context_ref);
 

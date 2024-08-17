@@ -7,6 +7,7 @@
 #include "openvino/genai/llm_pipeline.hpp"
 #include "embeddings.hpp"
 #include "state.hpp"
+#include<queue>
 
 #ifdef _WIN32
 #include "windows.h"
@@ -46,7 +47,7 @@ public:
 
         size_t chunk_num = 0;
         std::vector<std::string> retrieval_res;
-
+        std::queue<std::string> chat_buffer;
         ServerContext(Args arg_): args(arg_){}
     };
 

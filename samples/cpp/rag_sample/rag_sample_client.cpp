@@ -127,9 +127,20 @@ int main() {
                     if (user_prompt == "exit")
                         break;
                     auto completions = cli.Post("/completions", user_prompt, "text/plain");
-                    custom_sleep(1);
+                    // custom_sleep(0.5);
                     if (completions->status == httplib::StatusCode::OK_200) {
-                        std::cout << "completions->body: " << completions->body << "\n";
+                        while (auto res = cli.Post("/stream", user_prompt, "text/plain"))
+                        {
+                            if (res->body == "zheshibiaozhifu"){
+                                std::cout << "\n";
+                                break;
+                            } 
+                            
+                            std::cout << res->body;
+                        }
+                         
+
+
                     } else {
                         std::cout << "Completions failed\n";
                         std::cout << "Status: " << httplib::status_message(completions->status) << std::endl;
