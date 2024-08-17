@@ -50,6 +50,15 @@ public:
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_embeddings_unload(
         util::ServerContext& server_context_ref);
 
+    std::function<void(const httplib::Request&, httplib::Response&)> get_handle_blip_init(
+        util::ServerContext& server_context_ref);
+
+    std::function<void(const httplib::Request&, httplib::Response&)> get_handle_blip(
+        util::ServerContext& server_context_ref);
+
+    std::function<void(const httplib::Request&, httplib::Response&)> get_handle_blip_unload(
+        util::ServerContext& server_context_ref);
+
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_health(
         util::ServerContext& server_context_ref);
 

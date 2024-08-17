@@ -116,6 +116,27 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
     return handle_embeddings_init;
 }
 
+std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_handle_blip_init(
+    util::ServerContext& server_context_ref) {
+    const auto handle_init = [&server_context_ref](const httplib::Request& req_embedding,
+                                                              httplib::Response& res_embedding) {
+        if (server_context_ref.blip_state == State::STOPPED || server_context_ref.blip_state == State::ERR) {
+            server_context_ref.blip_pointer = std::make_shared<BlipModel>();
+            server_context_ref.blip_pointer->init(server_context_ref.args.blip_model_path,
+                                                       server_context_ref.args.blip_device);
+            server_context_ref.blip_state = State::IDLE;
+            res_embedding.set_header("Access-Control-Allow-Origin", req_embedding.get_header_value("Origin"));
+            res_embedding.set_content("Init blip success.", "text/plain");
+        } else {
+            res_embedding.set_header("Access-Control-Allow-Origin", req_embedding.get_header_value("Origin"));
+            res_embedding.set_content("Cannot init blip, cause blip is already be initialized.",
+                                      "text/plain");
+        }
+    };
+
+    return handle_init;
+}
+
 std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_handle_db_init(
     util::ServerContext& server_context_ref) {
     const auto handle_db_init = [&server_context_ref](const httplib::Request& req_db, httplib::Response& res_db) {
@@ -164,6 +185,36 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
     };
 
     return handle_embeddings;
+}
+
+std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_handle_blip(
+    util::ServerContext& server_context_ref) {
+    const auto handle = [&server_context_ref](const httplib::Request& req_embedding,
+                                                         httplib::Response& res_embedding) {
+        if (server_context_ref.blip_state == State::IDLE) {
+            res_embedding.set_header("Access-Control-Allow-Origin", req_embedding.get_header_value("Origin"));
+            json json_file = json::parse(req_embedding.body);
+            std::cout << "get json_file successed\n";
+            std::vector<std::string> inputs;
+            for (auto& elem : json_file["data"])
+                inputs.push_back(elem);
+            std::cout << "get inputs successed\n";
+            server_context_ref.blip_state = State::RUNNING;
+
+            std::vector<std::vector<float>> res_new = server_context_ref.blip_pointer->encode_images(inputs);
+            // TODO: save to db
+            server_context_ref.blip_state = State::IDLE;
+            res_embedding.set_content("Blip Embeddings success", "text/plain");
+        } else {
+            res_embedding.set_header("Access-Control-Allow-Origin", req_embedding.get_header_value("Origin"));
+            res_embedding.set_content(
+                "Cannot do blip embeddings, cause blip embeddings inferrequest is now not initialized or busy, check "
+                "the stats of blip.",
+                "text/plain");
+        }
+    };
+
+    return handle;
 }
 
 std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_handle_db_store_embeddings(
@@ -297,6 +348,18 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
 
     return handle_embeddings_unload;
 }
+
+std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_handle_blip_unload(
+    util::ServerContext& server_context_ref) {
+    const auto handle_unload = [&server_context_ref](const httplib::Request& req_embedding,
+                                                                httplib::Response& res_embedding) {
+        server_context_ref.blip_pointer.reset();
+        server_context_ref.blip_state = State::STOPPED;
+    };
+
+    return handle_unload;
+}
+
 
 std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_handle_health(
     util::ServerContext& server_context_ref) {

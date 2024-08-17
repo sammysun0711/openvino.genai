@@ -8,6 +8,7 @@
 #include "embeddings.hpp"
 #include "state.hpp"
 #include<queue>
+#include "blip.hpp"
 
 #ifdef _WIN32
 #include "windows.h"
@@ -21,6 +22,8 @@ public:
         std::string llm_model_path = "";
         std::string llm_device = "CPU";
         std::string embedding_model_path = "";
+        std::string blip_model_path = "";
+        std::string blip_device = "CPU";
         std::string embedding_device = "CPU";
         std::string db_connection = "user=postgres host=localhost password=openvino port=5432 dbname=postgres";
         std::string rag_connection = "127.0.0.1:7890";
@@ -77,12 +80,14 @@ public:
     struct ServerContext {
         std::shared_ptr<llmBackend> chat_stream_pointer;
         std::shared_ptr<Embeddings> embedding_pointer;
+        std::shared_ptr<BlipModel> blip_pointer;
         std::shared_ptr<DBPgvector> db_pgvector_pointer;
 
         util::Args args;
 
         State server_state = State::STOPPED;
         State embedding_state = State::STOPPED;
+        State blip_state = State::STOPPED;
         State llm_state = State::STOPPED;
         State db_state = State::STOPPED;
 
@@ -105,6 +110,8 @@ public:
             << "  --llm_device              STRING      Specify which device used for llm inference\n"
             << "  --embedding_model_path    PATH        Directory contains OV Bert model and tokenizers\n"
             << "  --embedding_device        STRING      Specify which device used for bert inference\n"
+            << "  --blip_model_path   PATH        Directory contains OV blip vision model and projection model\n"
+            << "  --blip_device       STRING      Specify which device used for blip inference\n"
             << "  --db_connection           STRING      Specify which user, host, password, port, dbname\n"
             << "  --rag_connection          STRING      Specify host:port(default: \"127.0.0.1:7890\")\n"
             << "  --max_new_tokens          N           Specify max new generated tokens (default: 32)\n"
@@ -140,6 +147,10 @@ public:
                 args.embedding_model_path = argv[++i];
             } else if (arg == "--embedding_device") {
                 args.embedding_device = argv[++i];
+            } else if (arg == "--blip_model_path") {
+                args.blip_model_path = argv[++i];
+            } else if (arg == "--blip_device") {
+                args.blip_device = argv[++i];
             } else if (arg == "--max_new_tokens") {
                 args.max_new_tokens = std::stoi(argv[++i]);
             } else if (arg == "--do_sample") {

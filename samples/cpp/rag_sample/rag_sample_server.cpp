@@ -49,6 +49,10 @@ int main(int argc, char** argv) try {
     auto handle_embeddings = handle_master.get_handle_embeddings(server_context);
     auto handle_embeddings_unload = handle_master.get_handle_embeddings_unload(server_context);
 
+    auto handle_blip_init = handle_master.get_handle_blip_init(server_context);
+    auto handle_blip = handle_master.get_handle_blip(server_context);
+    auto handle_blip_unload = handle_master.get_handle_blip_unload(server_context);
+
     auto handle_health = handle_master.get_handle_health(server_context);
 
     auto handle_db_init = handle_master.get_handle_db_init(server_context);
@@ -67,6 +71,9 @@ int main(int argc, char** argv) try {
     svr->Post("/embeddings_init", handle_embeddings_init);
     svr->Post("/embeddings", handle_embeddings);
     svr->Post("/embeddings_unload", handle_embeddings_unload);
+    svr->Post("/blip_init", handle_blip_init);
+    svr->Post("/blip", handle_blip);
+    svr->Post("/blip_unload", handle_blip_unload);
     svr->Post("/llm_init", handle_llm_init);
     svr->Post("/llm_unload", handle_llm_unload);
     svr->Post("/completions", handle_llm);
