@@ -34,6 +34,7 @@ static auto usage() -> void {
               << "  db_retrieval_llm          \n"
               << "  embeddings_unload          \n"
               << "  llm_init            \n"
+              << "  llm_reset  \n"
               << "  llm         \n"
               << "  llm_unload            \n"
               << "  health_cheak            \n"
@@ -116,6 +117,15 @@ int main() {
             } else {
                 std::cout << "Init llm failed\n";
                 std::cout << "Status: " << httplib::status_message(llm_init->status) << std::endl;
+            }
+
+        } else if (command == "llm_reset") {
+            auto llm_reset = cli.Post("/llm_reset", "", "");
+            if (llm_reset->status == httplib::StatusCode::OK_200) {
+                std::cout << llm_reset->body << "\n";
+            } else {
+                std::cout << "Reset llm failed\n";
+                std::cout << "Status: " << httplib::status_message(llm_reset->status) << std::endl;
             }
 
         } else if (command == "llm") {

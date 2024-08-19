@@ -43,6 +43,7 @@ int main(int argc, char** argv) try {
     auto handle_llm = handle_master.get_handle_llm(server_context);
     auto handle_llm_streamer = handle_master.get_handle_llm_streamer(server_context);
     auto handle_llm_unload = handle_master.get_handle_llm_unload(server_context);
+    auto handle_llm_reset = handle_master.get_handle_llm_reset(server_context);
 
     auto handle_embeddings_init = handle_master.get_handle_embeddings_init(server_context);
     auto handle_embeddings = handle_master.get_handle_embeddings(server_context);
@@ -70,6 +71,7 @@ int main(int argc, char** argv) try {
     svr->Post("/llm_unload", handle_llm_unload);
     svr->Post("/completions", handle_llm);
     svr->Post("/stream", handle_llm_streamer);
+    svr->Post("/llm_reset", handle_llm_reset);
     svr->Post("/db_init", handle_db_init);
     svr->Post("/db_store_embeddings", handle_db_store_embeddings);
     svr->Post("/db_retrieval", handle_db_retrieval);

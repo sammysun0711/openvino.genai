@@ -15,7 +15,7 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
             server_context_ref.chat_stream_pointer->llm_pointer =
                 std::make_shared<ov::genai::LLMPipeline>(server_context_ref.args.llm_model_path,
                                                          server_context_ref.args.llm_device);
-
+            server_context_ref.chat_stream_pointer->llm_pointer->start_chat();
             // server_context_ref.llm_pointer =
             //     std::make_shared<ov::genai::LLMPipeline>(server_context_ref.args.llm_model_path,
             //                                              server_context_ref.args.llm_device);
@@ -41,15 +41,6 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
             server_context_ref.llm_state = State::RUNNING;
             server_context_ref.chat_stream_pointer->get_prompt(prompt);
             server_context_ref.chat_stream_pointer->start_infer();
-            // auto config = server_context_ref.llm_pointer->get_generation_config();
-            // config.max_new_tokens = server_context_ref.args.max_new_tokens;
-   
-            // auto streamer = [&server_context_ref](std::string subword) {
-            //     std::cout << "subword: " << subword << "\n";
-            //     server_context_ref.chat_buffer.push(subword);
-            //     return false;
-            // };
-            // server_context_ref.llm_pointer->generate(prompt, config, streamer);
         } else {
             res_llm.set_header("Access-Control-Allow-Origin", req_llm.get_header_value("Origin"));
             res_llm.set_content(
@@ -85,6 +76,17 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
         server_context_ref.llm_state = State::STOPPED;
     };
     return handle_llm_unload;
+}
+
+std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_handle_llm_reset(
+    util::ServerContext& server_context_ref) {
+    const auto handle_llm_reset = [&server_context_ref](const httplib::Request& req, httplib::Response& res) {
+        server_context_ref.chat_stream_pointer->llm_pointer->finish_chat();
+        server_context_ref.llm_state = State::STOPPED;
+        server_context_ref.chat_stream_pointer->llm_pointer->start_chat();
+        server_context_ref.llm_state = State::IDLE;
+    };
+    return handle_llm_reset;
 }
 
 std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_handle_embeddings_init(

@@ -38,6 +38,9 @@ public:
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_llm_unload(
         util::ServerContext& server_context_ref);
 
+    std::function<void(const httplib::Request&, httplib::Response&)> get_handle_llm_reset(
+        util::ServerContext& server_context_ref);
+
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_embeddings_init(
         util::ServerContext& server_context_ref);
 
