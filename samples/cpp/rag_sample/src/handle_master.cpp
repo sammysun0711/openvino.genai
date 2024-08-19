@@ -9,9 +9,16 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
     util::ServerContext& server_context_ref) {
     const auto handle_llm_init = [&server_context_ref](const httplib::Request& req, httplib::Response& res) {
         if (server_context_ref.llm_state == State::STOPPED || server_context_ref.llm_state == State::ERR) {
-            server_context_ref.llm_pointer =
+            
+            server_context_ref.chat_stream_pointer = std::make_shared<util::llmBackend>();
+            server_context_ref.chat_stream_pointer->set_config(server_context_ref.args);
+            server_context_ref.chat_stream_pointer->llm_pointer =
                 std::make_shared<ov::genai::LLMPipeline>(server_context_ref.args.llm_model_path,
                                                          server_context_ref.args.llm_device);
+
+            // server_context_ref.llm_pointer =
+            //     std::make_shared<ov::genai::LLMPipeline>(server_context_ref.args.llm_model_path,
+            //                                              server_context_ref.args.llm_device);
             server_context_ref.llm_state = State::IDLE;
             res.set_header("Access-Control-Allow-Origin", req.get_header_value("Origin"));
             res.set_content("Init llm success.", "text/plain");
@@ -32,16 +39,17 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
             std::cout << "req_llm.body: " << req_llm.body << "\n";
             std::string prompt = req_llm.body;
             server_context_ref.llm_state = State::RUNNING;
-
-            auto config = server_context_ref.llm_pointer->get_generation_config();
-            config.max_new_tokens = server_context_ref.args.max_new_tokens;
+            server_context_ref.chat_stream_pointer->get_prompt(prompt);
+            server_context_ref.chat_stream_pointer->start_infer();
+            // auto config = server_context_ref.llm_pointer->get_generation_config();
+            // config.max_new_tokens = server_context_ref.args.max_new_tokens;
    
-            auto streamer = [&server_context_ref](std::string subword) {
-                std::cout << "subword: " << subword << "\n";
-                server_context_ref.chat_buffer.push(subword);
-                return false;
-            };
-            server_context_ref.llm_pointer->generate(prompt, config, streamer);
+            // auto streamer = [&server_context_ref](std::string subword) {
+            //     std::cout << "subword: " << subword << "\n";
+            //     server_context_ref.chat_buffer.push(subword);
+            //     return false;
+            // };
+            // server_context_ref.llm_pointer->generate(prompt, config, streamer);
         } else {
             res_llm.set_header("Access-Control-Allow-Origin", req_llm.get_header_value("Origin"));
             res_llm.set_content(
@@ -55,14 +63,15 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
 std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_handle_llm_streamer(
     util::ServerContext& server_context_ref) {
     const auto handle_llm_streamer = [&server_context_ref](const httplib::Request& req_llm, httplib::Response& res_llm) {
-        if (!server_context_ref.chat_buffer.empty()) {
+
+        if (!server_context_ref.chat_stream_pointer->chat_buffer.empty()) {
+            if (server_context_ref.chat_stream_pointer->chat_buffer.front()=="zheshibiaozhifu")
+            {
+                server_context_ref.llm_state = State::IDLE;
+            }
             res_llm.set_header("Access-Control-Allow-Origin", req_llm.get_header_value("Origin"));
-            res_llm.set_content(server_context_ref.chat_buffer.front(), "text/plain");
-            server_context_ref.chat_buffer.pop();
-        } else {
-            server_context_ref.llm_state = State::IDLE;
-            res_llm.set_header("Access-Control-Allow-Origin", req_llm.get_header_value("Origin"));
-            res_llm.set_content("zheshibiaozhifu","text/plain");
+            res_llm.set_content(server_context_ref.chat_stream_pointer->chat_buffer.front(), "text/plain");
+            server_context_ref.chat_stream_pointer->chat_buffer.pop();
         }
     };
     return handle_llm_streamer;
@@ -71,8 +80,8 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
 std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_handle_llm_unload(
     util::ServerContext& server_context_ref) {
     const auto handle_llm_unload = [&server_context_ref](const httplib::Request& req, httplib::Response& res) {
-        server_context_ref.llm_pointer->finish_chat();
-        server_context_ref.llm_pointer.reset();
+        server_context_ref.chat_stream_pointer->llm_pointer->finish_chat();
+        server_context_ref.chat_stream_pointer->llm_pointer.reset();
         server_context_ref.llm_state = State::STOPPED;
     };
     return handle_llm_unload;
@@ -241,7 +250,7 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
             std::cout << "HandleMaster::db_retrieval successed\n";
 
             server_context_ref.llm_state = State::RUNNING;
-            auto config = server_context_ref.llm_pointer->get_generation_config();
+            auto config = server_context_ref.chat_stream_pointer->llm_pointer->get_generation_config();
             config.max_new_tokens = server_context_ref.args.max_new_tokens;
 
             // TODO: optimizate prompt_template, here is a demo to add all retrieval result with prompt.
@@ -250,7 +259,7 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
                 prompt_template = prompt_template + i;
 
             prompt_template = prompt_template + ". The question is " + prompt;
-            std::string response = server_context_ref.llm_pointer->generate(prompt_template, config);
+            std::string response = server_context_ref.chat_stream_pointer->llm_pointer->generate(prompt_template, config);
 
             std::cout << "response: " << response << "\n";
             server_context_ref.llm_state = State::IDLE;

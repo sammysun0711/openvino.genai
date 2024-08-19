@@ -33,8 +33,48 @@ public:
         bool verbose = false;
     };
 
+    class llmBackend{
+        public:
+            
+            std::shared_ptr<ov::genai::LLMPipeline> llm_pointer;
+            std::queue<std::string> chat_buffer;
+            int max_new_tokens=32;
+
+            void infer_thread(){
+                auto config = llm_pointer->get_generation_config();
+                config.max_new_tokens = max_new_tokens;
+    
+                auto streamer = [this](std::string subword) {
+                    std::cout << "subword: " << subword << "\n";
+                    this->chat_buffer.push(subword);
+                    return false;
+                };
+                llm_pointer->generate(prompt, config, streamer);      
+                this->chat_buffer.push("zheshibiaozhifu");     
+   
+            }
+
+            void start_infer(){
+                std::thread infer_thread(&llmBackend::infer_thread, this);
+                infer_thread.detach();
+            }
+
+            void get_prompt(std::string new_prompt){
+                this->prompt = new_prompt;
+                this->llm_backend_state = State::RUNNING;
+            }
+
+            void set_config(Args args){
+                this->max_new_tokens = args.max_new_tokens;
+            }
+        
+        private:
+            std::string prompt;
+            State llm_backend_state;
+    };
+
     struct ServerContext {
-        std::shared_ptr<ov::genai::LLMPipeline> llm_pointer;
+        std::shared_ptr<llmBackend> chat_stream_pointer;
         std::shared_ptr<Embeddings> embedding_pointer;
         std::shared_ptr<DBPgvector> db_pgvector_pointer;
 
@@ -47,9 +87,11 @@ public:
 
         size_t chunk_num = 0;
         std::vector<std::string> retrieval_res;
-        std::queue<std::string> chat_buffer;
+        
         ServerContext(Args arg_): args(arg_){}
     };
+
+
 
     static auto usage(const std::string& prog) -> void {
         std::cout

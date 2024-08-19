@@ -127,7 +127,7 @@ int main() {
                     if (user_prompt == "exit")
                         break;
                     auto completions = cli.Post("/completions", user_prompt, "text/plain");
-                    // custom_sleep(0.5);
+                    
                     if (completions->status == httplib::StatusCode::OK_200) {
                         while (auto res = cli.Post("/stream", user_prompt, "text/plain"))
                         {
@@ -135,11 +135,8 @@ int main() {
                                 std::cout << "\n";
                                 break;
                             } 
-                            
                             std::cout << res->body;
                         }
-                         
-
 
                     } else {
                         std::cout << "Completions failed\n";
