@@ -210,7 +210,7 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
             query.push_back(prompt);
             std::vector<std::vector<float>> embeddings_query =
                 server_context_ref.embedding_pointer->encode_queries(query);
-            server_context_ref.retrieval_res =
+            std::vector<std::string> retrieval_res =
                 server_context_ref.db_pgvector_pointer->db_retrieval(server_context_ref.chunk_num,
                                                                      query,
                                                                      embeddings_query);
@@ -258,7 +258,7 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
 
             prompt_template = prompt_template + ". The question is " + prompt;
 
-            server_context_ref.chat_stream_pointer->get_prompt(prompt);
+            server_context_ref.chat_stream_pointer->get_prompt(prompt_template);
             server_context_ref.chat_stream_pointer->start_infer();
             server_context_ref.llm_state = State::IDLE;
             server_context_ref.db_state = State::IDLE;

@@ -196,6 +196,7 @@ int main() {
                         std::cout << "db_retrieval failed\n";
                         std::cout << "Status: " << httplib::status_message(db_retrieval->status) << std::endl;
                     }
+                    std::cout << "Enter your prompt: ";
                 }
             }
         } else if (command == "llm_unload") {
