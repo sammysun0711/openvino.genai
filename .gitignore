@@ -35,3 +35,7 @@ CMakeUserPresets.json
 *.pyc
 __pycache__
 .py-build-cmake_cache
+
+#model file
+bge-small-zh-v1.5/
+TinyLlama-1.1B-Chat-v1.0/

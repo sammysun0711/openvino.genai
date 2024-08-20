@@ -234,7 +234,7 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
     util::ServerContext& server_context_ref) {
     const auto handle_db_store_embeddings = [&server_context_ref](const httplib::Request& req_retrieval,
                                                                   httplib::Response& res_retrieval) {
-        if (server_context_ref.db_state == State::IDLE) {
+        if (server_context_ref.db_state == State::IDLE && server_context_ref.llm_state == State::IDLE) {
             res_retrieval.set_header("Access-Control-Allow-Origin", req_retrieval.get_header_value("Origin"));
             std::cout << "req_retrieval.body: " << req_retrieval.body << "\n";
             std::string prompt = req_retrieval.body;
@@ -252,21 +252,16 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
             std::cout << "HandleMaster::db_retrieval successed\n";
 
             server_context_ref.llm_state = State::RUNNING;
-            auto config = server_context_ref.chat_stream_pointer->llm_pointer->get_generation_config();
-            config.max_new_tokens = server_context_ref.args.max_new_tokens;
-
-            // TODO: optimizate prompt_template, here is a demo to add all retrieval result with prompt.
             std::string prompt_template = "The reference documents are ";
             for (auto& i : retrieval_res)
                 prompt_template = prompt_template + i;
 
             prompt_template = prompt_template + ". The question is " + prompt;
-            std::string response = server_context_ref.chat_stream_pointer->llm_pointer->generate(prompt_template, config);
 
-            std::cout << "response: " << response << "\n";
+            server_context_ref.chat_stream_pointer->get_prompt(prompt);
+            server_context_ref.chat_stream_pointer->start_infer();
             server_context_ref.llm_state = State::IDLE;
             server_context_ref.db_state = State::IDLE;
-            res_retrieval.set_content(response, "text/plain");
         } else {
             res_retrieval.set_header("Access-Control-Allow-Origin", res_retrieval.get_header_value("Origin"));
             res_retrieval.set_content(

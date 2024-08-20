@@ -182,9 +182,16 @@ int main() {
                     if (query_prompt == "exit")
                         break;
                     auto db_retrieval = cli.Post("/db_retrieval_llm", query_prompt, "text/plain");
-                    custom_sleep(1);
                     if (db_retrieval->status == httplib::StatusCode::OK_200) {
-                        std::cout << "db_retrieval->body: " << db_retrieval->body << "\n";
+                        while (auto res = cli.Post("/stream", query_prompt, "text/plain"))
+                        {
+                            if (res->body == "zheshibiaozhifu"){
+                                std::cout << "\n";
+                                break;
+                            } 
+                            std::cout << res->body;
+                        }
+
                     } else {
                         std::cout << "db_retrieval failed\n";
                         std::cout << "Status: " << httplib::status_message(db_retrieval->status) << std::endl;

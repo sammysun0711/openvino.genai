@@ -24,7 +24,7 @@ public:
         std::string embedding_device = "CPU";
         std::string db_connection = "user=postgres host=localhost password=openvino port=5432 dbname=postgres";
         std::string rag_connection = "127.0.0.1:7890";
-        int max_new_tokens = 32;
+        int max_new_tokens = 64;
         bool do_sample = false;
         int top_k = 0;
         float top_p = 0.7;
