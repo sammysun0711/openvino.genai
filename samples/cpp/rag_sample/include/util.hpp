@@ -26,6 +26,7 @@ public:
         std::string rag_connection = "127.0.0.1:7890";
         int max_new_tokens = 64;
         bool do_sample = false;
+        bool enable_multi_round_chat = false;
         int top_k = 0;
         float top_p = 0.7;
         float temp = 0.95;
@@ -45,7 +46,6 @@ public:
                 config.max_new_tokens = max_new_tokens;
     
                 auto streamer = [this](std::string subword) {
-                    std::cout << "subword: " << subword << "\n";
                     this->chat_buffer.push(subword);
                     return false;
                 };
@@ -86,7 +86,7 @@ public:
         State db_state = State::STOPPED;
 
         size_t chunk_num = 0;
-        std::vector<std::string> retrieval_res;
+        std::vector<std::string> retrieval_prompt_history;
         
         ServerContext(Args arg_): args(arg_){}
     };
@@ -152,6 +152,8 @@ public:
                 args.repeat_penalty = std::stof(argv[++i]);
             } else if (arg == "--verbose") {
                 args.verbose = true;
+            } else if (arg == "--enable_multi_round_chat") {
+                args.enable_multi_round_chat = true;
             } else {
                 std::cerr << "Unknown argument: " << arg << std::endl;
                 usage(argv[0]);

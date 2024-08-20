@@ -15,7 +15,7 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
             server_context_ref.chat_stream_pointer->llm_pointer =
                 std::make_shared<ov::genai::LLMPipeline>(server_context_ref.args.llm_model_path,
                                                          server_context_ref.args.llm_device);
-            server_context_ref.chat_stream_pointer->llm_pointer->start_chat();
+            // server_context_ref.chat_stream_pointer->llm_pointer->start_chat();
             // server_context_ref.llm_pointer =
             //     std::make_shared<ov::genai::LLMPipeline>(server_context_ref.args.llm_model_path,
             //                                              server_context_ref.args.llm_device);
@@ -25,7 +25,7 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
 
         } else {
             res.set_header("Access-Control-Allow-Origin", req.get_header_value("Origin"));
-            res.set_content("Cannot init llm, cause llm is already be initialized.", "text/plain");
+            res.set_content("ERROR: Cannot init llm, cause llm is already be initialized.", "text/plain");
         }
     };
     return handle_llm_init;
@@ -44,7 +44,7 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
         } else {
             res_llm.set_header("Access-Control-Allow-Origin", req_llm.get_header_value("Origin"));
             res_llm.set_content(
-                "Cannot do llm chat, cause llm inferrequest is now not initialized or busy, check the stats of llm.",
+                "ERROR: Cannot do llm chat, cause llm inferrequest is now not initialized or busy, check the stats of llm.",
                 "text/plain");
         }
     };
@@ -102,7 +102,7 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
             res_embedding.set_content("Init embeddings success.", "text/plain");
         } else {
             res_embedding.set_header("Access-Control-Allow-Origin", req_embedding.get_header_value("Origin"));
-            res_embedding.set_content("Cannot init embeddings, cause embeddings is already be initialized.",
+            res_embedding.set_content("ERROR: Cannot init embeddings, cause embeddings is already be initialized.",
                                       "text/plain");
         }
     };
@@ -124,7 +124,7 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
             res_db.set_content("Init db success.", "text/plain");
         } else {
             res_db.set_header("Access-Control-Allow-Origin", req_db.get_header_value("Origin"));
-            res_db.set_content("Cannot init db, cause db is already be initialized.", "text/plain");
+            res_db.set_content("ERROR: Cannot init db, cause db is already be initialized.", "text/plain");
         }
     };
 
@@ -151,7 +151,7 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
         } else {
             res_embedding.set_header("Access-Control-Allow-Origin", req_embedding.get_header_value("Origin"));
             res_embedding.set_content(
-                "Cannot do embeddings, cause embeddings inferrequest is now not initialized or busy, check "
+                "ERROR: Cannot do embeddings, cause embeddings inferrequest is now not initialized or busy, check "
                 "the stats of embeddings.",
                 "text/plain");
         }
@@ -187,7 +187,7 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
             res_insert.set_content("insert success", "text/plain");
         } else {
             res_insert.set_header("Access-Control-Allow-Origin", req_insert.get_header_value("Origin"));
-            res_insert.set_content("Cannot insert, cause insert inferrequest is now not initialized or busy, check "
+            res_insert.set_content("ERROR: Cannot insert, cause insert inferrequest is now not initialized or busy, check "
                                    "the stats of insert.",
                                    "text/plain");
         }
@@ -221,7 +221,7 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
         } else {
             res_retrieval.set_header("Access-Control-Allow-Origin", res_retrieval.get_header_value("Origin"));
             res_retrieval.set_content(
-                "Cannot retrieve, cause retrieve inferrequest is now not initialized or busy, check "
+                "ERROR: Cannot retrieve, cause retrieve inferrequest is now not initialized or busy, check "
                 "the stats of retrieve.",
                 "text/plain");
         }
@@ -256,16 +256,24 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
             for (auto& i : retrieval_res)
                 prompt_template = prompt_template + i;
 
-            prompt_template = prompt_template + ". The question is " + prompt;
-
-            server_context_ref.chat_stream_pointer->get_prompt(prompt_template);
-            server_context_ref.chat_stream_pointer->start_infer();
+            prompt_template = prompt_template + ". The question is " + prompt;          
+            std::cout << "prompt_template: " << prompt_template << "\n";
+            if (server_context_ref.args.enable_multi_round_chat){
+                // server_context_ref.chat_stream_pointer->llm_pointer->m_model_runner.reset_state();
+                server_context_ref.chat_stream_pointer->get_prompt(prompt_template);
+                server_context_ref.chat_stream_pointer->start_infer();
+            }else{
+                server_context_ref.chat_stream_pointer->llm_pointer->finish_chat();
+                server_context_ref.chat_stream_pointer->llm_pointer->start_chat();
+                server_context_ref.chat_stream_pointer->get_prompt(prompt_template);
+                server_context_ref.chat_stream_pointer->start_infer();
+            }
             server_context_ref.llm_state = State::IDLE;
             server_context_ref.db_state = State::IDLE;
         } else {
             res_retrieval.set_header("Access-Control-Allow-Origin", res_retrieval.get_header_value("Origin"));
             res_retrieval.set_content(
-                "Cannot retrieve, cause retrieve inferrequest is now not initialized or busy, check "
+                "ERROR: Cannot retrieve, cause retrieve inferrequest is now not initialized or busy, check "
                 "the stats of retrieve.",
                 "text/plain");
         }

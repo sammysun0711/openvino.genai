@@ -138,7 +138,7 @@ int main() {
                         break;
                     auto completions = cli.Post("/completions", user_prompt, "text/plain");
                     
-                    if (completions->status == httplib::StatusCode::OK_200) {
+                    if (completions->status == httplib::StatusCode::OK_200 && completions->body.find("ERROR") == std::string::npos) {
                         while (auto res = cli.Post("/stream", user_prompt, "text/plain"))
                         {
                             if (res->body == "zheshibiaozhifu"){
@@ -165,7 +165,7 @@ int main() {
                         break;
                     auto db_retrieval = cli.Post("/db_retrieval", query_prompt, "text/plain");
                     custom_sleep(1);
-                    if (db_retrieval->status == httplib::StatusCode::OK_200) {
+                    if (db_retrieval->status == httplib::StatusCode::OK_200 && db_retrieval->body.find("ERROR") == std::string::npos) {
                         std::cout << "db_retrieval->body: " << db_retrieval->body << "\n";
                     } else {
                         std::cout << "db_retrieval failed\n";
@@ -182,7 +182,7 @@ int main() {
                     if (query_prompt == "exit")
                         break;
                     auto db_retrieval = cli.Post("/db_retrieval_llm", query_prompt, "text/plain");
-                    if (db_retrieval->status == httplib::StatusCode::OK_200) {
+                    if (db_retrieval->status == httplib::StatusCode::OK_200 && db_retrieval->body.find("ERROR") == std::string::npos) {
                         while (auto res = cli.Post("/stream", query_prompt, "text/plain"))
                         {
                             if (res->body == "zheshibiaozhifu"){
