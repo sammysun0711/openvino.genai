@@ -94,6 +94,10 @@ public:
         size_t chunk_num = 0;
         std::vector<std::string> retrieval_prompt_history;
         
+        std::vector<std::string> retrieval_res;
+
+        size_t image_num = 0;
+
         ServerContext(Args arg_): args(arg_){}
     };
 
