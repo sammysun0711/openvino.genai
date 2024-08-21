@@ -46,6 +46,7 @@ public:
                 config.max_new_tokens = max_new_tokens;
     
                 auto streamer = [this](std::string subword) {
+                    // std::cout << "subword: " << subword << std::endl;
                     this->chat_buffer.push(subword);
                     return false;
                 };
@@ -99,21 +100,22 @@ public:
             << "\n"
             << "options:\n"
             << "  -h,    --help                        Show this help message and exit\n"
-            << "  --llm_model_path         PATH        Directory contains OV LLM model and tokenizers\n"
-            << "  --llm_device             STRING      Specify which device used for llm inference\n"
-            << "  --embedding_model_path   PATH        Directory contains OV Bert model and tokenizers\n"
-            << "  --embedding_device       STRING      Specify which device used for bert inference\n"
-            << "  --db_connection          STRING      Specify which user, host, password, port, dbname\n"
-            << "  --rag_connection         STRING      Specify host:port(default: \"127.0.0.1:7890\")\n"
-            << "  --max_new_tokens         N           Specify max new generated tokens (default: 32)\n"
-            << "  --do_sample              BOOL        Specify whether do random sample (default: False)\n"
-            << "  --top_k                  N           Specify top-k parameter for sampling (default: 0)\n"
-            << "  --top_p                  N           Specify top-p parameter for sampling (default: 0.7)\n"
-            << "  --temperature            N           Specify temperature parameter for sampling (default: 0.95)\n"
-            << "  --repeat_penalty         N           Specify penalize sequence of tokens (default: 1.0, means no "
+            << "  --llm_model_path          PATH        Directory contains OV LLM model and tokenizers\n"
+            << "  --enable_multi_round_chat BOOL        Specify whether do multi-round chat (default: False)\n"
+            << "  --llm_device              STRING      Specify which device used for llm inference\n"
+            << "  --embedding_model_path    PATH        Directory contains OV Bert model and tokenizers\n"
+            << "  --embedding_device        STRING      Specify which device used for bert inference\n"
+            << "  --db_connection           STRING      Specify which user, host, password, port, dbname\n"
+            << "  --rag_connection          STRING      Specify host:port(default: \"127.0.0.1:7890\")\n"
+            << "  --max_new_tokens          N           Specify max new generated tokens (default: 32)\n"
+            << "  --do_sample               BOOL        Specify whether do random sample (default: False)\n"
+            << "  --top_k                   N           Specify top-k parameter for sampling (default: 0)\n"
+            << "  --top_p                   N           Specify top-p parameter for sampling (default: 0.7)\n"
+            << "  --temperature             N           Specify temperature parameter for sampling (default: 0.95)\n"
+            << "  --repeat_penalty          N           Specify penalize sequence of tokens (default: 1.0, means no "
                "repeat "
                "penalty)\n"
-            << "  --verbose                BOOL        Display verbose output including config/system/performance "
+            << "  --verbose                 BOOL        Display verbose output including config/system/performance "
                "info\n";
     }
 

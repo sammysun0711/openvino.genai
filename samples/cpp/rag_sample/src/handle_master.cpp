@@ -15,6 +15,7 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
             server_context_ref.chat_stream_pointer->llm_pointer =
                 std::make_shared<ov::genai::LLMPipeline>(server_context_ref.args.llm_model_path,
                                                          server_context_ref.args.llm_device);
+            if (server_context_ref.args.enable_multi_round_chat) server_context_ref.chat_stream_pointer->llm_pointer->start_chat();
             // server_context_ref.chat_stream_pointer->llm_pointer->start_chat();
             // server_context_ref.llm_pointer =
             //     std::make_shared<ov::genai::LLMPipeline>(server_context_ref.args.llm_model_path,
@@ -39,8 +40,15 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
             std::cout << "req_llm.body: " << req_llm.body << "\n";
             std::string prompt = req_llm.body;
             server_context_ref.llm_state = State::RUNNING;
-            server_context_ref.chat_stream_pointer->get_prompt(prompt);
-            server_context_ref.chat_stream_pointer->start_infer();
+            if (server_context_ref.args.enable_multi_round_chat){
+                server_context_ref.chat_stream_pointer->get_prompt(prompt);
+                server_context_ref.chat_stream_pointer->start_infer();
+            }else{
+                server_context_ref.chat_stream_pointer->llm_pointer->finish_chat();
+                server_context_ref.chat_stream_pointer->llm_pointer->start_chat();
+                server_context_ref.chat_stream_pointer->get_prompt(prompt);
+                server_context_ref.chat_stream_pointer->start_infer();
+            }
         } else {
             res_llm.set_header("Access-Control-Allow-Origin", req_llm.get_header_value("Origin"));
             res_llm.set_content(
@@ -83,8 +91,6 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
     const auto handle_llm_reset = [&server_context_ref](const httplib::Request& req, httplib::Response& res) {
         server_context_ref.chat_stream_pointer->llm_pointer->finish_chat();
         server_context_ref.llm_state = State::STOPPED;
-        server_context_ref.chat_stream_pointer->llm_pointer->start_chat();
-        server_context_ref.llm_state = State::IDLE;
     };
     return handle_llm_reset;
 }
@@ -259,7 +265,6 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
             prompt_template = prompt_template + ". The question is " + prompt;          
             std::cout << "prompt_template: " << prompt_template << "\n";
             if (server_context_ref.args.enable_multi_round_chat){
-                // server_context_ref.chat_stream_pointer->llm_pointer->m_model_runner.reset_state();
                 server_context_ref.chat_stream_pointer->get_prompt(prompt_template);
                 server_context_ref.chat_stream_pointer->start_infer();
             }else{

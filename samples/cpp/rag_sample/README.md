@@ -174,19 +174,20 @@ Usage: rag_sample_server.exe [options]
 
 options:
   -h,    --help                        Show this help message and exit
-  --llm_model_path         PATH        Directory contains OV LLM model and tokenizers
-  --llm_device             STRING      Specify which device used for llm inference
-  --embedding_model_path   PATH        Directory contains OV Bert model and tokenizers
-  --embedding_device       STRING      Specify which device used for bert inference
-  --db_connection          STRING      Specify which user, host, password, port, dbname
-  --rag_connection         STRING      Specify host:port(default: "127.0.0.1:7890")
-  --max_new_tokens         N           Specify max new generated tokens (default: 32)
-  --do_sample              BOOL        Specify whether do random sample (default: False)
-  --top_k                  N           Specify top-k parameter for sampling (default: 0)
-  --top_p                  N           Specify top-p parameter for sampling (default: 0.7)
-  --temperature            N           Specify temperature parameter for sampling (default: 0.95)
-  --repeat_penalty         N           Specify penalize sequence of tokens (default: 1.0, means no repeat penalty)
-  --verbose                BOOL        Display verbose output including config/system/performance info
+  --llm_model_path          PATH        Directory contains OV LLM model and tokenizers
+  --llm_device              STRING      Specify which device used for llm inference
+  --enable_multi_round_chat BOOL        Specify whether do multi-round chat (default: False)
+  --embedding_model_path    PATH        Directory contains OV Bert model and tokenizers
+  --embedding_device        STRING      Specify which device used for bert inference
+  --db_connection           STRING      Specify which user, host, password, port, dbname
+  --rag_connection          STRING      Specify host:port(default: "127.0.0.1:7890")
+  --max_new_tokens          N           Specify max new generated tokens (default: 32)
+  --do_sample               BOOL        Specify whether do random sample (default: False)
+  --top_k                   N           Specify top-k parameter for sampling (default: 0)
+  --top_p                   N           Specify top-p parameter for sampling (default: 0.7)
+  --temperature             N           Specify temperature parameter for sampling (default: 0.95)
+  --repeat_penalty          N           Specify penalize sequence of tokens (default: 1.0, means no repeat penalty)
+  --verbose                 BOOL        Display verbose output including config/system/performance info
 ```
 
 #### Lanuch Python Client
