@@ -19,18 +19,15 @@ else()
 endif()
 find_package(OpenVINO REQUIRED COMPONENTS Runtime)
 
-add_executable(blip_embedding_cli blip_embedding_cli.cpp src/blip.cpp)
 add_executable(rag_sample_server rag_sample_server.cpp src/handle_master.cpp src/embeddings.cpp src/db_pgvector.cpp src/blip.cpp)
 add_executable(rag_sample_client rag_sample_client.cpp)
 add_subdirectory(deps/libpqxx build-pqxx)
 target_link_libraries(rag_sample_server PRIVATE pqxx)
 target_link_libraries(rag_sample_server PRIVATE openvino::genai)
 
-target_link_libraries(blip_embedding_cli PRIVATE openvino::genai)
 
 target_compile_definitions(rag_sample_server PRIVATE OPENVINO_TOKENIZERS_PATH="${OPENVINO_TOKENIZERS_PATH}")
 
-target_compile_features(blip_embedding_cli PRIVATE cxx_std_17)
 target_compile_features(rag_sample_server PRIVATE cxx_std_17)
 target_compile_features(rag_sample_client PRIVATE cxx_std_17)
 
