@@ -249,11 +249,11 @@ void App::LoadInputImageData() {
     glBindTexture(GL_TEXTURE_2D, state.input_image.textureID);
     glTexImage2D(GL_TEXTURE_2D,
                  0,
-                 GL_RGBA,
+                 GL_RGB,
                  state.input_image.width,
                  state.input_image.height,
                  0,
-                 state.input_image.channels == 4 ? GL_RGBA : GL_RGB,
+                 GL_RGB,
                  GL_UNSIGNED_BYTE,
                  state.input_image.data);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
