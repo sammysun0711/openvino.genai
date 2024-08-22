@@ -88,6 +88,7 @@ add_executable(${GUI_APP_NAME} rag_sample_gui.cpp
     src/db_pgvector.cpp
     src/blip.cpp
     src/app/worker.cpp
+    src/app/server_context.cpp
     ${APP_DEPS_SOURCE}
     ${IMGUI_SOURCES}
 )

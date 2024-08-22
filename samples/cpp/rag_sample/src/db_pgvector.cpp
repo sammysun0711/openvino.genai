@@ -7,11 +7,16 @@
 #include <pqxx/transaction>
 #include <string>
 
-void DBPgvector::db_setup(const std::string& db_connection_str) {
+
+void DBPgvector::db_connect(const std::string& db_connection_str) {
     if (!pgconn) {
         pgconn.emplace(db_connection_str);
         std::cout << "connected to DB: " << pgconn->dbname() << std::endl;
     }
+}
+
+void DBPgvector::db_setup(const std::string& db_connection_str) {
+    db_connect(db_connection_str);
     try {
         pqxx::work tx{*pgconn};
         tx.exec0("CREATE EXTENSION IF NOT EXISTS vector");
@@ -94,5 +99,39 @@ std::vector<std::string> DBPgvector::db_retrieval(size_t chunk_num,
         std::cerr << "SQL error: " << e.what() << '\n';
     }
     std::cout << "DBPgvector::db_retrieval DELETE successed\n";
+    return retrieval_res;
+}
+
+
+std::vector<std::string> DBPgvector::db_retrieval_only(std::vector<std::string> query,
+                                                       std::vector<std::vector<float>> query_embedding,
+                                                       int topk) {
+    std::cout << "db_retrieval start and will get the top " << topk << " results: " << std::endl;
+    std::vector<std::string> retrieval_res;
+    try {
+        pqxx::work tx{*pgconn};
+        pgvector::Vector embeddings_vector(query_embedding[0]);
+
+        // the top 3 search, result without the query
+        pqxx::result res{
+            tx.exec_params("SELECT id, content, embedding FROM documents ORDER BY embedding <=> $1 LIMIT $2",
+                           embeddings_vector,
+                           topk)};
+
+        std::cout << "===================================\n";
+
+        for (const pqxx::row& row : res) {
+            std::string chunks_str = row["content"].c_str();
+            std::cout << "ID: " << row[0] << ", parts of the chunks content: \n"
+                      << chunks_str.substr(0, 100) << " ..." << std::endl;
+            std::cout << "===================================\n";
+            retrieval_res.push_back(row["content"].c_str());
+        }
+        tx.commit();
+        std::cout << "DBPgvector::db_retrieval SELECT successed\n";
+
+    } catch (pqxx::sql_error const& e) {
+        std::cerr << "SQL error: " << e.what() << '\n';
+    }
     return retrieval_res;
 }

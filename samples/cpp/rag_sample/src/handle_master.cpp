@@ -120,11 +120,11 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
     util::ServerContext& server_context_ref) {
     const auto handle_init = [&server_context_ref](const httplib::Request& req_embedding,
                                                               httplib::Response& res_embedding) {
-        if (server_context_ref.blip_state == State::STOPPED || server_context_ref.blip_state == State::ERR) {
-            server_context_ref.blip_pointer = std::make_shared<BlipModel>();
-            server_context_ref.blip_pointer->init(server_context_ref.args.blip_model_path,
-                                                       server_context_ref.args.blip_device);
-            server_context_ref.blip_state = State::IDLE;
+        if (server_context_ref.image_embeddings_state == State::STOPPED || server_context_ref.image_embeddings_state == State::ERR) {
+            server_context_ref.image_embeddings_pointer = std::make_shared<BlipModel>();
+            server_context_ref.image_embeddings_pointer->init(server_context_ref.args.image_embedding_model_path,
+                                                       server_context_ref.args.image_embedding_device);
+            server_context_ref.image_embeddings_state = State::IDLE;
             res_embedding.set_header("Access-Control-Allow-Origin", req_embedding.get_header_value("Origin"));
             res_embedding.set_content("Init image embeddings success.", "text/plain");
         } else {
@@ -191,7 +191,7 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
     util::ServerContext& server_context_ref) {
     const auto handle = [&server_context_ref](const httplib::Request& req_embedding,
                                                          httplib::Response& res_embedding) {
-        if (server_context_ref.blip_state == State::IDLE) {
+        if (server_context_ref.image_embeddings_state == State::IDLE) {
             res_embedding.set_header("Access-Control-Allow-Origin", req_embedding.get_header_value("Origin"));
             json json_file = json::parse(req_embedding.body);
             std::cout << "get json_file successed\n";
@@ -199,11 +199,11 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
             for (auto& elem : json_file["data"])
                 inputs.push_back(elem);
             std::cout << "get inputs successed\n";
-            server_context_ref.blip_state = State::RUNNING;
+            server_context_ref.image_embeddings_state = State::RUNNING;
 
-            std::vector<std::vector<float>> res_new = server_context_ref.blip_pointer->encode_images(inputs);
+            std::vector<std::vector<float>> res_new = server_context_ref.image_embeddings_pointer->encode_images(inputs);
             // TODO: save to db
-            server_context_ref.blip_state = State::IDLE;
+            server_context_ref.image_embeddings_state = State::IDLE;
             res_embedding.set_content("Image Embeddings success", "text/plain");
         } else {
             res_embedding.set_header("Access-Control-Allow-Origin", req_embedding.get_header_value("Origin"));
@@ -233,7 +233,7 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
             server_context_ref.db_state = State::RUNNING;
 
             std::vector<std::vector<float>> embeddings_res =
-                server_context_ref.blip_pointer->encode_images(inputs);
+                server_context_ref.image_embeddings_pointer->encode_images(inputs);
             std::cout << "inputs image embedding successed\n";
 
             server_context_ref.db_pgvector_pointer->db_store_embeddings(inputs, embeddings_res);
@@ -337,7 +337,7 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
             std::vector<std::string> query;
             query.push_back(image_path);
             std::vector<std::vector<float>> embeddings_query =
-                server_context_ref.blip_pointer->encode_images(query);
+                server_context_ref.image_embeddings_pointer->encode_images(query);
             server_context_ref.retrieval_res =
                 server_context_ref.db_pgvector_pointer->db_retrieval(server_context_ref.image_num,
                                                                      query,
@@ -429,8 +429,8 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
     util::ServerContext& server_context_ref) {
     const auto handle_unload = [&server_context_ref](const httplib::Request& req_embedding,
                                                                 httplib::Response& res_embedding) {
-        server_context_ref.blip_pointer.reset();
-        server_context_ref.blip_state = State::STOPPED;
+        server_context_ref.image_embeddings_pointer.reset();
+        server_context_ref.image_embeddings_state = State::STOPPED;
     };
 
     return handle_unload;

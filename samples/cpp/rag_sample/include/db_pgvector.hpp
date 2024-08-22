@@ -18,11 +18,16 @@ public:
     DBPgvector() = default;
     ~DBPgvector() = default;
 
+    void db_connect(const std::string& db_connection_str);
     void db_setup(const std::string& db_connection_str);
     void db_store_embeddings(std::vector<std::string> chunks, std::vector<std::vector<float>> embeddings);
     std::vector<std::string> db_retrieval(size_t chunk_size,
                                           std::vector<std::string> query,
                                           std::vector<std::vector<float>> query_embedding);
+
+    std::vector<std::string> db_retrieval_only(std::vector<std::string> query,
+                                               std::vector<std::vector<float>> query_embedding,
+                                               int topk = 3);
 
 private:
     std::optional<pqxx::connection> pgconn;
