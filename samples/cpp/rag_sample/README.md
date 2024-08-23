@@ -173,7 +173,7 @@ cd openvino.genai
 Usage: rag_sample_server.exe [options]
 
 options:
-  -h,    --help                        Show this help message and exit
+  -h,    --help                         Show this help message and exit
   --llm_model_path          PATH        Directory contains OV LLM model and tokenizers
   --llm_device              STRING      Specify which device used for llm inference
   --enable_multi_round_chat BOOL        Specify whether do multi-round chat (default: False)

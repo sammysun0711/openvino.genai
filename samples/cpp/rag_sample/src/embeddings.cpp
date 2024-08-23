@@ -28,9 +28,15 @@ std::vector<ov::Tensor> Embeddings::tokenize(std::string prompt) {
     }
 
     tokenizer.infer();
-    return {tokenizer.get_tensor("input_ids"),
-            tokenizer.get_tensor("attention_mask"),
-            tokenizer.get_tensor("token_type_ids")};
+    ov::Tensor input_ids(tokenizer.get_tensor("input_ids").get_element_type(), tokenizer.get_tensor("input_ids").get_shape());
+    tokenizer.get_tensor("input_ids").copy_to(input_ids);
+    ov::Tensor attention_mask(tokenizer.get_tensor("attention_mask").get_element_type(), tokenizer.get_tensor("attention_mask").get_shape());
+    tokenizer.get_tensor("attention_mask").copy_to(attention_mask);
+    ov::Tensor token_type_ids(tokenizer.get_tensor("token_type_ids").get_element_type(), tokenizer.get_tensor("token_type_ids").get_shape());
+    tokenizer.get_tensor("token_type_ids").copy_to(token_type_ids);
+    return {input_ids,
+            attention_mask,
+            token_type_ids};
 }
 
 inline ov::Tensor Embeddings::convert_inttensor_to_floattensor(ov::Tensor itensor) {

@@ -6,6 +6,7 @@
 #include <vector>
 #include "openvino/genai/llm_pipeline.hpp"
 #include "embeddings.hpp"
+#include "reranker.hpp"
 #include "state.hpp"
 #include<queue>
 
@@ -22,6 +23,8 @@ public:
         std::string llm_device = "CPU";
         std::string embedding_model_path = "";
         std::string embedding_device = "CPU";
+        std::string reranker_model_path = "";
+        std::string reranker_device = "CPU";
         std::string db_connection = "user=postgres host=localhost password=openvino port=5432 dbname=postgres";
         std::string rag_connection = "127.0.0.1:7890";
         int max_new_tokens = 64;
@@ -77,6 +80,7 @@ public:
     struct ServerContext {
         std::shared_ptr<llmBackend> chat_stream_pointer;
         std::shared_ptr<Embeddings> embedding_pointer;
+        std::shared_ptr<Reranker> reranker_pointer;
         std::shared_ptr<DBPgvector> db_pgvector_pointer;
 
         util::Args args;
@@ -140,6 +144,10 @@ public:
                 args.embedding_model_path = argv[++i];
             } else if (arg == "--embedding_device") {
                 args.embedding_device = argv[++i];
+            } else if (arg == "--reranker_model_path") {
+                args.reranker_model_path = argv[++i];
+            } else if (arg == "--reranker_device") {
+                args.reranker_device = argv[++i];
             } else if (arg == "--max_new_tokens") {
                 args.max_new_tokens = std::stoi(argv[++i]);
             } else if (arg == "--do_sample") {

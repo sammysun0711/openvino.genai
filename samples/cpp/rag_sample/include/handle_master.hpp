@@ -13,6 +13,7 @@
 
 #include "db_pgvector.hpp"
 #include "embeddings.hpp"
+#include "reranker.hpp"
 #include "httplib.h"
 #include "json.hpp"
 #include "state.hpp"

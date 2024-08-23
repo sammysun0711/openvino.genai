@@ -123,6 +123,11 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
             server_context_ref.embedding_pointer = std::make_shared<Embeddings>();
             server_context_ref.embedding_pointer->init(server_context_ref.args.embedding_model_path,
                                                        server_context_ref.args.embedding_device);
+
+            server_context_ref.reranker_pointer = std::make_shared<Reranker>();
+            server_context_ref.reranker_pointer->init(server_context_ref.args.reranker_model_path,
+                                                       server_context_ref.args.reranker_device);  
+
             server_context_ref.db_pgvector_pointer = std::make_shared<DBPgvector>();
             server_context_ref.db_pgvector_pointer->db_setup(server_context_ref.args.db_connection);
             server_context_ref.db_state = State::IDLE;
@@ -257,13 +262,20 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
                                                                      embeddings_query);
             std::cout << "HandleMaster::db_retrieval successed\n";
 
+            int top_k = 1;
+            std::vector<std::string> compressed_res = server_context_ref.reranker_pointer->compress_documents(prompt, retrieval_res, top_k);
+            
+            std::cout << "Select top " << top_k << " documents for the prompt: " << prompt << "\n";
+
             server_context_ref.llm_state = State::RUNNING;
             std::string prompt_template = "The reference documents are ";
-            for (auto& i : retrieval_res)
+            for (auto& i : compressed_res){
                 prompt_template = prompt_template + i;
-
+                
+            }
+                
             prompt_template = prompt_template + ". The question is " + prompt;          
-            std::cout << "prompt_template: " << prompt_template << "\n";
+
             if (server_context_ref.args.enable_multi_round_chat){
                 server_context_ref.chat_stream_pointer->get_prompt(prompt_template);
                 server_context_ref.chat_stream_pointer->start_infer();
