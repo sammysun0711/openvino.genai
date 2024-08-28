@@ -1,17 +1,16 @@
 #include <stdio.h>
 
 #include <filesystem>
+#include <queue>
 #include <random>
 #include <string>
-#include <queue>
 
-#include "stb_image.h"
 #include "blip.hpp"
 #include "gui.hpp"
 #include "openvino/openvino.hpp"
+#include "stb_image.h"
 #include "tinyfiledialogs.h"
 #include "worker.hpp"
-
 
 struct Column {
     float currentHeight;
@@ -23,8 +22,8 @@ struct Column {
 };
 
 void ShowImagesWithBalancedHeight(const std::vector<ImageData>& images, float windowWidth, float xscale) {
-    float maxImageWidth = 175 * xscale;  
-    float padding = 10.0f * xscale; 
+    float maxImageWidth = 175 * xscale;
+    float padding = 10.0f * xscale;
 
     int columnCount = static_cast<int>(windowWidth / (maxImageWidth + padding));
     if (columnCount < 1)
@@ -67,7 +66,7 @@ void ShowImagesWithBalancedHeight(const std::vector<ImageData>& images, float wi
 
             if (ImGui::IsItemHovered()) {
                 ImGui::BeginTooltip();
-                ImGui::Text("[#%d]: %s",image.rank, image.path.c_str());
+                ImGui::Text("[#%d]: %s", image.rank, image.path.c_str());
                 ImGui::EndTooltip();
             }
         }
@@ -93,9 +92,7 @@ std::string openFileDialog() {
 }
 
 bool validate_directory(const std::string& path) {
-    const std::vector<std::string> required_subdirs = {"bge-small-zh-v1.5",
-                                                       "blip_vqa_base",
-                                                       "TinyLlama-1.1B-Chat-v1.0"};
+    const std::vector<std::string> required_subdirs = {"blip_vqa_base"};
 
     for (const std::string& subdir : required_subdirs) {
         std::filesystem::path subdir_path = std::filesystem::path(path) / subdir;
@@ -212,7 +209,6 @@ int App::Clean() {
     }
     state.result_images.clear();
 
-
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
@@ -238,10 +234,10 @@ void App::LoadInputImageData() {
         glDeleteTextures(1, &state.input_image.textureID);
 
     state.input_image.data = stbi_load(state.input_image.path.c_str(),
-                               &state.input_image.width,
-                               &state.input_image.height,
-                               &state.input_image.channels,
-                               3);
+                                       &state.input_image.width,
+                                       &state.input_image.height,
+                                       &state.input_image.channels,
+                                       3);
     if (!state.input_image.data)
         throw std::runtime_error("failed to load image");
 
@@ -268,12 +264,12 @@ void App::RenderLeftPanel() {
     std::vector<const char*> items;
     for (int i = 0; i < state.devices.size(); ++i)
         items.push_back(state.devices[i].c_str());
-
+    ImGui::PushItemWidth(200 * xscale);
     ImGui::Combo("Device", &state.active_device_index, items.data(), items.size());
 
     if (state.model_path.empty()) {
         ImGui::SameLine();
-        if (ImGui::Button("Model")) {
+        if (ImGui::Button("Select Model")) {
             std::string model_path = openFolderDialog();
             if (!model_path.empty()) {
                 state.model_path = model_path;
@@ -307,38 +303,36 @@ void App::RenderLeftPanel() {
         }
     }
 
-    if (!state.input_image.path.empty()) {
-        if (server_context != nullptr && is_image_embeddings_ready(*server_context)) {
-            ImGui::SameLine();
-            if (ImGui::InputInt("top k", &state.topk)){
-                if (state.topk < 1) {
-                    state.topk = 1;
-                }
-                if (state.topk > 30) {
-                    state.topk = 30;
-                }
-            }
-            ImGui::SameLine();
-            ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(5 / 7.0f, 0.6f, 0.6f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(5 / 7.0f, 0.7f, 0.7f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(5 / 7.0f, 0.8f, 0.8f));
-
-            if (ImGui::Button("Search")) {
-                worker.Request([this] {
-                    state.results.clear();
-                    std::vector<std::string> inputs = {state.input_image.path};
-                    state.results = handle_db_retrieval_image(*server_context, inputs, state.topk);
-                    state.should_load_results = true;
-                    for (size_t i = 0; i < state.results.size(); i++) {
-                        std::cout << state.results[i] << std::endl;
-                    }
-                });
-            }
-            ImGui::PopStyleColor(3);
+    ImGui::PushItemWidth(200 * xscale);
+    if (ImGui::InputInt("Results number", &state.topk)) {
+        if (state.topk < 1) {
+            state.topk = 1;
         }
-
-        imgui_fix_text(font, state.input_image.path.c_str());
+        if (state.topk > 30) {
+            state.topk = 30;
+        }
     }
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(5 / 7.0f, 0.6f, 0.6f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(5 / 7.0f, 0.7f, 0.7f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(5 / 7.0f, 0.8f, 0.8f));
+
+    if (ImGui::Button("Search")) {
+        if (server_context != nullptr && is_image_embeddings_ready(*server_context) &&
+            !state.input_image.path.empty()) {
+            worker.Request([this] {
+                state.results.clear();
+                std::vector<std::string> inputs = {state.input_image.path};
+                state.results = handle_db_retrieval_image(*server_context, inputs, state.topk);
+                state.should_load_results = true;
+                for (size_t i = 0; i < state.results.size(); i++) {
+                    std::cout << state.results[i] << std::endl;
+                }
+            });
+        }
+    }
+    ImGui::PopStyleColor(3);
+    imgui_fix_text(font, state.input_image.path.c_str());
 
     if (state.should_load) {
         // load image data and construct texture
@@ -361,9 +355,10 @@ void App::RenderLeftPanel() {
         ImVec2 window_pos = ImGui::GetCursorScreenPos();
 
         // Draw a black background
-        ImGui::GetWindowDrawList()->AddRectFilled(window_pos,
-                                                  ImVec2(window_pos.x + 600.0f * xscale, window_pos.y + 600.0f * yscale),
-                                                  IM_COL32(128, 128, 128, 128));
+        ImGui::GetWindowDrawList()->AddRectFilled(
+            window_pos,
+            ImVec2(window_pos.x + 600.0f * xscale, window_pos.y + 600.0f * yscale),
+            IM_COL32(128, 128, 128, 128));
         ImGui::SetCursorScreenPos(ImVec2(window_pos.x + padding.x, window_pos.y + padding.y));
         // Draw the texture
         ImGui::Image((void*)(intptr_t)state.input_image.textureID, preview_size);
@@ -373,7 +368,6 @@ void App::RenderLeftPanel() {
 
     ImGui::EndChild();
 }
-
 
 void App::LoadResultImageData() {
     for (auto image : state.result_images) {
