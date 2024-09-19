@@ -37,7 +37,7 @@ static auto usage() -> void {
               << "  llm_reset  \n"
               << "  llm         \n"
               << "  llm_unload            \n"
-              << "  health_cheak            \n"
+              << "  health_check            \n"
               << "  exit         \n";
 }
 
@@ -215,12 +215,12 @@ int main() {
                 std::cout << "Unload embeddings failed\n";
                 std::cout << "Status: " << httplib::status_message(embeddings_unload->status) << std::endl;
             }
-        } else if (command == "health_cheak") {
+        } else if (command == "health_check") {
             auto health = cli.Post("/health", "", "");
             if (health->status == httplib::StatusCode::OK_200) {
                 std::cout << "health: " << health->body << "\n";
             } else {
-                std::cout << "health_cheak failed\n";
+                std::cout << "health_check failed\n";
                 std::cout << "Status: " << httplib::status_message(health->status) << std::endl;
             }
         }
