@@ -109,6 +109,8 @@ public:
             << "  --llm_device              STRING      Specify which device used for llm inference\n"
             << "  --embedding_model_path    PATH        Directory contains OV Bert model and tokenizers\n"
             << "  --embedding_device        STRING      Specify which device used for bert inference\n"
+            << "  --reranker_model_path     PATH        Directory contains OV Reranker model and tokenizers\n"
+            << "  --reranker_device         STRING      Specify which device used for reranker inference\n"
             << "  --db_connection           STRING      Specify which user, host, password, port, dbname\n"
             << "  --rag_connection          STRING      Specify host:port(default: \"127.0.0.1:7890\")\n"
             << "  --max_new_tokens          N           Specify max new generated tokens (default: 32)\n"
