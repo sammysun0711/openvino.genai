@@ -1,7 +1,10 @@
 # Copyright (C) 2023-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
-
+# fix httplib issue
+if (MSVC)
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
+endif()
 # SET(CMAKE_BUILD_TYPE "Debug")
 # SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g2 -ggdb")
 
@@ -23,6 +26,11 @@ find_package(OpenVINO REQUIRED COMPONENTS Runtime)
 add_executable(rag_sample_server rag_sample_server.cpp src/handle_master.cpp src/embeddings.cpp src/db_pgvector.cpp src/reranker.cpp)
 add_executable(rag_sample_client rag_sample_client.cpp)
 add_subdirectory(deps/libpqxx build-pqxx)
+# set MT for libpqxx
+if (TARGET libpqxx AND MSVC)
+  target_compile_options(libpqxx PUBLIC /MT)
+  target_link_options(libpqxx PUBLIC /NODEFAULTLIB:MSVCRT)
+endif()
 target_link_libraries(rag_sample_server PRIVATE pqxx)
 target_link_libraries(rag_sample_server PRIVATE openvino::genai)
 
