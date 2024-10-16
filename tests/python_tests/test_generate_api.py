@@ -11,6 +11,7 @@ import openvino as ov
 import sys
 from pathlib import Path
 import torch
+import math
 from ov_genai_test_utils import (
     get_models_list, 
     read_model, 
@@ -18,11 +19,11 @@ from ov_genai_test_utils import (
     load_tok, 
     model_tmp_path, 
     STOP_CRITERIA_MAP, 
+    get_continuous_batching,
 )
 
 
 def run_hf_ov_genai_comparison_batched(model_descr, generation_config: Dict, prompts: Union[str, List[str]]):
-    device = 'CPU'
     model_id, path, tokenizer, model, pipe = model_descr
     config = generation_config.copy()  # to avoid side effects
     num_beams = config['num_beams'] if 'num_beams' in config else 1
@@ -67,7 +68,6 @@ def run_hf_ov_genai_comparison_batched(model_descr, generation_config: Dict, pro
         assert hf_output == ov_output
 
 def run_hf_ov_genai_comparison(model_descr, generation_config: Dict, prompt: str):
-    device = 'CPU'
     model_id, path, tokenizer, model, pipe = model_descr
 
     config = generation_config.copy()  # to avoid side effects
@@ -75,7 +75,7 @@ def run_hf_ov_genai_comparison(model_descr, generation_config: Dict, prompt: str
     if 'do_sample' not in config:
         # Some HF models have default do_sample = True, and if we set beam search generation config 
         # it conflicts with `diversity_penalty` and/or `num_beam_groups`.
-        # Need to set exlicitly to False, but only if test arguments omitted this arg.
+        # Need to set explicitly to False, but only if test arguments omitted this arg.
         # Do not apply 'repetition_penalty' if sampling is not used.
         config['do_sample'] = False
         config['repetition_penalty'] = None
@@ -151,6 +151,7 @@ test_cases = [
 @pytest.mark.parametrize("generation_config,prompt", test_cases)
 @pytest.mark.parametrize("model_descr", get_models_list())
 @pytest.mark.precommit
+@pytest.mark.nightly
 def test_decoding(model_descr, generation_config, prompt):
     run_hf_ov_genai_comparison(read_model(model_descr), generation_config, prompt)
 
@@ -161,13 +162,8 @@ input_tensors_list = [
 ]
 @pytest.mark.parametrize("inputs", input_tensors_list)
 @pytest.mark.parametrize("model_descr", get_models_list())
-@pytest.mark.xfail(
-    raises=TypeError, 
-    reason="pybind was unable to find overloads with tensor inputs on Linux",
-    strict=False,
-    condition=sys.platform == "linux"
-)
 @pytest.mark.precommit
+@pytest.mark.nightly
 def test_ov_tensors(model_descr, inputs):
     hf_ov_genai_tensors_comparison(read_model(model_descr), dict(max_new_tokens=20), *inputs)
 
@@ -182,6 +178,7 @@ prompts = [
 @pytest.mark.parametrize("model_descr", get_models_list())
 @pytest.mark.parametrize("prompt", prompts)
 @pytest.mark.precommit
+@pytest.mark.nightly
 @pytest.mark.xfail(
     raises=TypeError, 
     reason="pybind was unable to find ov::Tensor from openvino yet",
@@ -217,12 +214,6 @@ encoded_prompts = [
 @pytest.mark.parametrize("model_descr", get_models_list())
 @pytest.mark.parametrize("encoded_prompt", encoded_prompts)
 @pytest.mark.precommit
-@pytest.mark.xfail(
-    raises=TypeError, 
-    reason="pybind was unable to find ov::Tensor from openvino yet",
-    strict=False,
-    condition=sys.platform in ["linux", "win32"]
-)
 def test_genai_tokenizer_decode(model_descr, encoded_prompt):
     model_id, path, tokenizer, model, pipe = read_model(model_descr)
     tok = pipe.get_tokenizer()
@@ -252,6 +243,7 @@ batched_prompts = [
 @pytest.mark.parametrize("prompts", batched_prompts)
 @pytest.mark.parametrize("model_descr", get_models_list())
 @pytest.mark.precommit
+@pytest.mark.nightly
 def test_multibatch(model_descr, generation_config, prompts):
     run_hf_ov_genai_comparison_batched(read_model(model_descr), generation_config, prompts)
 
@@ -264,6 +256,7 @@ prompts = ['The Sun is yellow because', 'Difference between Jupiter and Mars is 
 @pytest.mark.parametrize("prompt", prompts)
 @pytest.mark.parametrize("model_descr", get_models_list())
 @pytest.mark.precommit
+@pytest.mark.nightly
 def test_beam_search_decoding(model_descr, num_beam_groups, group_size,
                               max_new_tokens, diversity_penalty, prompt):
     generation_config = dict(
@@ -281,6 +274,7 @@ def test_beam_search_decoding(model_descr, num_beam_groups, group_size,
 @pytest.mark.parametrize("max_new_tokens", [10, 80])
 @pytest.mark.parametrize("model_descr", get_models_list())
 @pytest.mark.precommit
+@pytest.mark.nightly
 def test_stop_criteria(model_descr, stop_criteria, prompt, max_new_tokens):
     # todo: with EARLY stop_criteria looks like HF return unvalid out with sentence<eos><unk><unk>
     # while genai ends sentence with <eos>
@@ -303,7 +297,6 @@ def test_stop_criteria(model_descr, stop_criteria, prompt, max_new_tokens):
 @pytest.mark.parametrize("max_new_tokens", [800, 2000])
 @pytest.mark.parametrize("prompt", prompts)
 @pytest.mark.parametrize("model_descr", get_models_list())
-@pytest.mark.skip(reason="Will be enabled in nightly since the test are computationally expensive")
 @pytest.mark.nightly
 def test_beam_search_long_sentences(model_descr, num_beam_groups, group_size,
                                     max_new_tokens, prompt):
@@ -323,6 +316,7 @@ def user_defined_callback(subword):
 
 @pytest.mark.parametrize("callback", [print, user_defined_callback, lambda subword: print(subword)])
 @pytest.mark.precommit
+@pytest.mark.nightly
 def test_callback_one_string(callback):
     pipe = read_model(get_models_list()[0])[4]
     generation_config = pipe.get_generation_config()
@@ -332,6 +326,7 @@ def test_callback_one_string(callback):
 
 @pytest.mark.parametrize("callback", [print, user_defined_callback, lambda subword: print(subword)])
 @pytest.mark.precommit
+@pytest.mark.nightly
 def test_callback_batch_fail(callback):
     pipe = read_model(get_models_list()[0])[4]
     with pytest.raises(RuntimeError):
@@ -340,12 +335,14 @@ def test_callback_batch_fail(callback):
 
 @pytest.mark.parametrize("callback", [print, user_defined_callback, lambda subword: print(subword)])
 @pytest.mark.precommit
+@pytest.mark.nightly
 def test_callback_kwargs_one_string(callback):
     pipe = read_model(get_models_list()[0])[4]
     pipe.generate('table is made of', max_new_tokens=10, streamer=callback)
 
 @pytest.mark.parametrize("callback", [print, user_defined_callback, lambda subword: print(subword)])
 @pytest.mark.precommit
+@pytest.mark.nightly
 @pytest.mark.parametrize("model_descr", get_models_list())
 def test_callback_decoding_metallama(model_descr, callback):
     # On metallam this prompt generates output which can shorten after adding new tokens.
@@ -359,6 +356,7 @@ def test_callback_decoding_metallama(model_descr, callback):
 
 @pytest.mark.parametrize("callback", [print, user_defined_callback, lambda subword: print(subword)])
 @pytest.mark.precommit
+@pytest.mark.nightly
 def test_callback_kwargs_batch_fail(callback):
     pipe = read_model(get_models_list()[0])[4]
     with pytest.raises(RuntimeError):
@@ -380,6 +378,7 @@ class Printer(ov_genai.StreamerBase):
 
 
 @pytest.mark.precommit
+@pytest.mark.nightly
 def test_streamer_one_string():
     pipe = read_model(get_models_list()[0])[4]
     generation_config = pipe.get_generation_config()
@@ -389,6 +388,7 @@ def test_streamer_one_string():
 
 
 @pytest.mark.precommit
+@pytest.mark.nightly
 def test_streamer_batch_fail():
     pipe = read_model(get_models_list()[0])[4]
     printer = Printer(pipe.get_tokenizer())
@@ -397,6 +397,7 @@ def test_streamer_batch_fail():
 
 
 @pytest.mark.precommit
+@pytest.mark.nightly
 def test_streamer_kwargs_one_string():
     pipe = read_model(get_models_list()[0])[4]
     printer = Printer(pipe.get_tokenizer())
@@ -404,6 +405,7 @@ def test_streamer_kwargs_one_string():
 
 
 @pytest.mark.precommit
+@pytest.mark.nightly
 def test_streamer_kwargs_batch_fail():
     pipe = read_model(get_models_list()[0])[4]
     printer = Printer(pipe.get_tokenizer())
@@ -412,6 +414,7 @@ def test_streamer_kwargs_batch_fail():
 
 
 @pytest.mark.precommit
+@pytest.mark.nightly
 @pytest.mark.parametrize("callback", [print, user_defined_callback, lambda subword: print(subword)])
 def test_operator_with_callback_one_string(callback):
     pipe = read_model(get_models_list()[0])[4]
@@ -421,6 +424,7 @@ def test_operator_with_callback_one_string(callback):
 
 
 @pytest.mark.precommit
+@pytest.mark.nightly
 @pytest.mark.parametrize("callback", [print, user_defined_callback, lambda subword: print(subword)])
 def test_operator_with_callback_batch_fail(callback):
     pipe = read_model(get_models_list()[0])[4]
@@ -429,6 +433,7 @@ def test_operator_with_callback_batch_fail(callback):
 
 
 @pytest.mark.precommit
+@pytest.mark.nightly
 def test_operator_with_streamer_kwargs_one_string():
     pipe = read_model(get_models_list()[0])[4]
     printer = Printer(pipe.get_tokenizer())
@@ -436,6 +441,7 @@ def test_operator_with_streamer_kwargs_one_string():
 
 
 @pytest.mark.precommit
+@pytest.mark.nightly
 def test_operator_with_streamer_kwargs_batch_fail():
     pipe = read_model(get_models_list()[0])[4]
     printer = Printer(pipe.get_tokenizer())
@@ -444,6 +450,7 @@ def test_operator_with_streamer_kwargs_batch_fail():
 
 
 @pytest.mark.precommit
+@pytest.mark.nightly
 def test_load_special_tokens_ids_1(model_tmp_path):
     # test when there is an available config.json
     config_json = { 
@@ -458,6 +465,7 @@ def test_load_special_tokens_ids_1(model_tmp_path):
 
 
 @pytest.mark.precommit
+@pytest.mark.nightly
 def test_load_special_tokens_str_2(model_tmp_path):
     # test with special_tokens_map
     special_tokens_map_json = { 
@@ -472,6 +480,7 @@ def test_load_special_tokens_str_2(model_tmp_path):
 
 
 @pytest.mark.precommit
+@pytest.mark.nightly
 def test_load_special_tokens_3_(model_tmp_path):
     # special_tokens_map is not available 
     # but tokenize_config.json exists
@@ -498,6 +507,7 @@ def test_load_special_tokens_3_(model_tmp_path):
 
 
 @pytest.mark.precommit
+@pytest.mark.nightly
 def test_load_special_tokens_3(model_tmp_path):
     # both config.json is availabel and tokenizer_config.json available
     # check that it does not read int values from tokenizer_config.json if they are in config.json
@@ -532,6 +542,7 @@ def test_load_special_tokens_3(model_tmp_path):
 
 
 @pytest.mark.precommit
+@pytest.mark.nightly
 @pytest.mark.xfail(
     raises=AssertionError, 
     reason="CVS-143410 ov tokenizer should be aligned with hf",
@@ -575,6 +586,7 @@ invalid_configs = [
 ]
 @pytest.mark.parametrize("generation_config", invalid_configs)
 @pytest.mark.precommit
+@pytest.mark.nightly
 def test_invalid_configs(model_tmp_path, generation_config):
     model_id, temp_path = model_tmp_path
     config_json = {}
@@ -584,6 +596,7 @@ def test_invalid_configs(model_tmp_path, generation_config):
 
 
 @pytest.mark.precommit
+@pytest.mark.nightly
 def test_valid_configs(model_tmp_path):
     model_id, temp_path = model_tmp_path
     pipe = load_pipe([({"eos_token_id": 37}, "config.json")], temp_path)
@@ -602,6 +615,7 @@ invalid_py_configs = [
     dict(top_k=0, do_sample=True, eos_token_id=42, max_new_tokens=20), # invalid top_k
 ]
 @pytest.mark.precommit
+@pytest.mark.nightly
 @pytest.mark.parametrize("generation_config", invalid_py_configs)
 def test_python_generation_config_validation(model_tmp_path, generation_config):
     model_id, temp_path = model_tmp_path
@@ -615,6 +629,7 @@ def test_python_generation_config_validation(model_tmp_path, generation_config):
 
 
 @pytest.mark.precommit
+@pytest.mark.nightly
 def test_unicode_pybind_decoding_1():
     # On this model this prompt generates unfinished utf string.
     # Test that pybind will not fail.
@@ -626,6 +641,7 @@ def test_unicode_pybind_decoding_1():
 
 
 @pytest.mark.precommit
+@pytest.mark.nightly
 def test_unicode_pybind_decoding_2():
     # On this model this prompt generates unfinished utf string.
     # Test that pybind will not fail.
@@ -636,6 +652,7 @@ def test_unicode_pybind_decoding_2():
 
 
 @pytest.mark.precommit
+@pytest.mark.nightly
 def test_unicode_pybind_decoding_3():
     # On this model this prompt generates unfinished utf-8 string
     # and streams it. Test that pybind will not fail while we pass string to python.
@@ -648,6 +665,7 @@ def test_unicode_pybind_decoding_3():
 
 @pytest.mark.skip(reason="probably both models ov + hf doesn't fit to memory")
 @pytest.mark.precommit
+@pytest.mark.nightly
 @pytest.mark.skipif(sys.platform.startswith("win"), reason="not enough space for this model on Win")
 def test_left_pad():
     # test left pad tokenizer post processing implementation
@@ -673,3 +691,119 @@ def test_left_pad():
 
     models[2].pad_token = models[2].eos_token
     run_hf_ov_genai_comparison_batched(models, config, prompts)
+
+
+@pytest.mark.parametrize("generation_config", test_configs)
+@pytest.mark.parametrize("prompt", batched_prompts[1:])  # num_beams=15 diverges on the first prompt.
+@pytest.mark.precommit
+def test_continuous_batching_vs_stateful(prompt, generation_config):
+    model_id, path, tokenizer, model, stateful = read_model((
+        "facebook/opt-125m",
+        Path("opt-125m")
+    ))
+    cb = get_continuous_batching(path)
+    generated = cb.generate(prompt, **generation_config)
+    reference = stateful.generate(prompt, **generation_config)
+    assert generated.texts == reference.texts
+    if 1 != generation_config.get("num_return_sequences", 1):
+        # Stateful puts zeroes to generated.scores. Don't compare them.
+        for gen, ref in zip(generated.scores, reference.scores):
+            assert math.isclose(gen, ref, abs_tol=0.0003)
+
+@pytest.mark.parametrize("prompt", prompts)
+@pytest.mark.precommit
+def test_cb_streamer_vs_return_vs_stateful(prompt):
+    model_id, path, tokenizer, model, stateful = read_model((
+        "facebook/opt-125m",
+        Path("opt-125m")
+    ))
+    cb = get_continuous_batching(path)
+    streamed = []
+    generated = cb.generate(prompt, max_new_tokens=20, streamer=lambda subword: streamed.append(subword))
+    reference = stateful.generate(prompt, max_new_tokens=20)
+    assert generated == "".join(streamed)
+    assert "".join(streamed) == reference
+
+def run_perf_metrics_collection(model_descr, generation_config: Dict, prompt: str) -> ov_genai.PerfMetrics:
+    model_id, path, tokenizer, model, pipe = model_descr
+
+    config = generation_config.copy()  # to avoid side effects
+
+    if 'do_sample' not in config:
+        # Some HF models have default do_sample = True, and if we set beam search generation config 
+        # it conflicts with `diversity_penalty` and/or `num_beam_groups`.
+        # Need to set explicitly to False, but only if test arguments omitted this arg.
+        # Do not apply 'repetition_penalty' if sampling is not used.
+        config['do_sample'] = False
+        config['repetition_penalty'] = None
+    return pipe.generate([prompt], **config).perf_metrics
+
+
+test_cases = [
+    (dict(max_new_tokens=20), 'table is made of'),
+]
+@pytest.mark.parametrize("generation_config,prompt", test_cases)
+@pytest.mark.parametrize("model_descr", get_models_list())
+@pytest.mark.precommit
+@pytest.mark.nightly
+def test_perf_metrics(model_descr, generation_config, prompt):
+    import time
+    start_time = time.perf_counter()
+    perf_metrics = run_perf_metrics_collection(read_model(model_descr), generation_config, prompt)
+    total_time = (time.perf_counter() - start_time) * 1000
+    
+    # Check that load time is adequate.
+    load_time = perf_metrics.get_load_time()
+    assert load_time > 0 and load_time < 1000.0  
+    
+    # Check that num input and generated tokens are adequate.
+    num_generated_tokens = perf_metrics.get_num_generated_tokens()
+    assert num_generated_tokens > 0 and num_generated_tokens <= generation_config['max_new_tokens']  
+    
+    num_input_tokens = perf_metrics.get_num_input_tokens()
+    assert num_input_tokens > 0 and num_input_tokens <= len(prompt)
+
+    mean_ttft, std_ttft = perf_metrics.get_ttft()
+    assert (mean_ttft, std_ttft) == (perf_metrics.get_ttft().mean, perf_metrics.get_ttft().std)
+    assert mean_ttft > 0 and mean_ttft < 1000.0
+
+    mean_tpot, std_tpot = perf_metrics.get_tpot()
+    assert (mean_tpot, std_tpot) == (perf_metrics.get_tpot().mean, perf_metrics.get_tpot().std)
+    assert mean_tpot > 0 and mean_ttft < 1000.0
+
+    mean_throughput, std_throughput = perf_metrics.get_throughput()
+    assert (mean_throughput, std_throughput) == (perf_metrics.get_throughput().mean, perf_metrics.get_throughput().std)
+    assert mean_throughput > 0 and mean_throughput < 20000.0
+    
+    mean_gen_duration, std_gen_duration = perf_metrics.get_generate_duration()
+    assert (mean_gen_duration, std_gen_duration) == (perf_metrics.get_generate_duration().mean, perf_metrics.get_generate_duration().std)
+    assert mean_gen_duration > 0 and load_time + mean_gen_duration < total_time
+    assert std_gen_duration == 0
+
+    mean_tok_duration, std_tok_duration = perf_metrics.get_tokenization_duration()
+    assert (mean_tok_duration, std_tok_duration) == (perf_metrics.get_tokenization_duration().mean, perf_metrics.get_tokenization_duration().std)
+    assert mean_tok_duration > 0 and mean_tok_duration < mean_gen_duration
+    assert std_tok_duration == 0
+
+    mean_detok_duration, std_detok_duration = perf_metrics.get_detokenization_duration()
+    assert (mean_detok_duration, std_detok_duration) == (perf_metrics.get_detokenization_duration().mean, perf_metrics.get_detokenization_duration().std)
+    assert mean_detok_duration > 0 and mean_detok_duration < mean_gen_duration
+    assert std_detok_duration == 0
+    
+    # assert that calculating statistics manually from the raw counters we get the same restults as from PerfMetrics
+    raw_metrics = perf_metrics.raw_metrics
+    raw_dur = np.array(raw_metrics.generate_durations) / 1000
+    assert np.allclose(mean_gen_duration, np.mean(raw_dur))
+    assert np.allclose(std_gen_duration, np.std(raw_dur))
+
+    raw_dur = np.array(raw_metrics.tokenization_durations) / 1000
+    assert np.allclose(mean_tok_duration, np.mean(raw_dur))
+    assert np.allclose(std_tok_duration, np.std(raw_dur))
+
+    raw_dur = np.array(raw_metrics.detokenization_durations) / 1000
+    assert np.allclose(mean_detok_duration, np.mean(raw_dur))
+    assert np.allclose(std_detok_duration, np.std(raw_dur))
+
+    assert len(raw_metrics.m_times_to_first_token) > 0
+    assert len(raw_metrics.m_batch_sizes) > 0
+    assert len(raw_metrics.m_durations) > 0
