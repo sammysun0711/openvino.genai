@@ -15,13 +15,7 @@ find_package(OpenVINOGenAI REQUIRED PATHS
 
 include_directories(include)
 
-if(TARGET openvino_tokenizers)
-    set(OPENVINO_TOKENIZERS_PATH $<TARGET_FILE:openvino_tokenizers>)
-else()
-    message(FATAL_ERROR "multinomial_causal_lm must be compiled as part of OpenVIINOGenAI to have the path to openvino_tokenizers hardcoded.")
-endif()
 find_package(OpenVINO REQUIRED COMPONENTS Runtime)
-
 
 add_executable(rag_sample_server rag_sample_server.cpp src/handle_master.cpp src/embeddings.cpp src/db_pgvector.cpp src/reranker.cpp)
 add_executable(rag_sample_client rag_sample_client.cpp)
@@ -35,6 +29,10 @@ target_link_libraries(rag_sample_server PRIVATE pqxx)
 target_link_libraries(rag_sample_server PRIVATE openvino::genai)
 
 target_compile_definitions(rag_sample_server PRIVATE OPENVINO_TOKENIZERS_PATH="${OPENVINO_TOKENIZERS_PATH}")
+set(OPENVINO_TOKENIZERS_PATH $<IF:$<BOOL:${genai_imported}>,${genai_imported},$<TARGET_FILE_DIR:openvino::genai>>)
+set(OPENVINO_TOKENIZERS_FILENAME "${CMAKE_SHARED_LIBRARY_PREFIX}openvino_tokenizers${CMAKE_SHARED_LIBRARY_SUFFIX}")
+target_compile_definitions(rag_sample_server PRIVATE
+    OPENVINO_TOKENIZERS_PATH="${OPENVINO_TOKENIZERS_PATH}/${OPENVINO_TOKENIZERS_FILENAME}")
 
 target_compile_features(rag_sample_server PRIVATE cxx_std_17)
 target_compile_features(rag_sample_client PRIVATE cxx_std_17)
