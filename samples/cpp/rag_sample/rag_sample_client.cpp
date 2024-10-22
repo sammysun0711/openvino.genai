@@ -6,7 +6,6 @@
 #include "httplib.h"
 #include "iostream"
 #include "json.hpp"
-
 using json = nlohmann::json;
 
 bool fileExists(const std::string& path) {
@@ -41,7 +40,9 @@ static auto usage() -> void {
               << "  llm_reset  \n"
               << "  llm         \n"
               << "  llm_unload            \n"
-              << "  health_cheak            \n"
+              << "  vlm_init  \n"
+              << "  vlm         \n"
+              << "  health_check            \n"
               << "  exit         \n";
 }
 
@@ -179,10 +180,10 @@ int main() {
                 if (user_prompt.length() != 0) {
                     if (user_prompt == "exit")
                         break;
-                    auto completions = cli.Post("/completions", user_prompt, "text/plain");
+                    auto llm = cli.Post("/llm", user_prompt, "text/plain");
                     
-                    if (completions->status == httplib::StatusCode::OK_200 && completions->body.find("ERROR") == std::string::npos) {
-                        while (auto res = cli.Post("/stream", user_prompt, "text/plain"))
+                    if (llm->status == httplib::StatusCode::OK_200 && llm->body.find("ERROR") == std::string::npos) {
+                        while (auto res = cli.Post("/llm_stream", user_prompt, "text/plain"))
                         {
                             if (res->body == "zheshibiaozhifu"){
                                 std::cout << "\n";
@@ -192,8 +193,8 @@ int main() {
                         }
 
                     } else {
-                        std::cout << "Completions failed\n";
-                        std::cout << "Status: " << httplib::status_message(completions->status) << std::endl;
+                        std::cout << "llm failed\n";
+                        std::cout << "Status: " << httplib::status_message(llm->status) << std::endl;
                     }
                     std::cout << "Enter your prompt: ";
                 }
@@ -245,7 +246,7 @@ int main() {
                         break;
                     auto db_retrieval = cli.Post("/db_retrieval_llm", query_prompt, "text/plain");
                     if (db_retrieval->status == httplib::StatusCode::OK_200 && db_retrieval->body.find("ERROR") == std::string::npos) {
-                        while (auto res = cli.Post("/stream", query_prompt, "text/plain"))
+                        while (auto res = cli.Post("/llm_stream", query_prompt, "text/plain"))
                         {
                             if (res->body == "zheshibiaozhifu"){
                                 std::cout << "\n";
@@ -286,13 +287,62 @@ int main() {
                 std::cout << "Unload embeddings failed\n";
                 std::cout << "Status: " << httplib::status_message(embeddings_unload->status) << std::endl;
             }
-        } else if (command == "health_cheak") {
+        } else if (command == "health_check") {
             auto health = cli.Post("/health", "", "");
             if (health->status == httplib::StatusCode::OK_200) {
                 std::cout << "health: " << health->body << "\n";
             } else {
-                std::cout << "health_cheak failed\n";
+                std::cout << "health_check failed\n";
                 std::cout << "Status: " << httplib::status_message(health->status) << std::endl;
+            }
+        } else if (command == "vlm_init") {
+            auto vlm_init = cli.Post("/vlm_init", "", "");
+            if (vlm_init->status == httplib::StatusCode::OK_200) {
+                std::cout << vlm_init->body << "\n";
+            } else {
+                std::cout << "Init vlm failed\n";
+                std::cout << "Status: " << httplib::status_message(vlm_init->status) << std::endl;
+            }
+        } else if (command == "vlm") {
+            std::string user_prompt;
+            std::cout << "Enter your prompt or you can enter image path(for example C:\\chen\\t.jpg) to upload image: ";
+            while (true) {
+                getline(std::cin, user_prompt);
+                if (user_prompt.length() != 0) {
+                    if (user_prompt == "exit")
+                        break;
+                    if (httplib::detail::is_file(user_prompt)) {
+                        std::string image;
+                        httplib::detail::read_file(user_prompt, image);
+                        auto vlm_image_upload = cli.Post("/vlm_image_upload", image, "image/jpeg");
+                        std::cout << "Succeed to read the image file." << std::endl;
+                        if (vlm_image_upload->status == httplib::StatusCode::OK_200) {
+                            std::cout << "Success uploaded" << "\n";
+                            } else {
+                                std::cout << "upload image failed\n";
+                                std::cout << "Status: " << httplib::status_message(vlm_image_upload->status) << std::endl;
+                            }
+                    } else {
+                        auto vlm = cli.Post("/vlm", user_prompt, "text/plain");
+                        if (vlm->status == httplib::StatusCode::OK_200 && vlm->body.find("ERROR") == std::string::npos) {
+                            while (auto res = cli.Post("/vlm_stream", user_prompt, "text/plain"))
+                            {
+                                if (res->body == "zheshibiaozhifu"){
+                                    std::cout << "\n";
+                                    break;
+                                } 
+                                std::cout << res->body;
+                            }
+
+                        } else {
+                            std::cout << "vlm failed\n";
+                            std::cout << "Status: " << httplib::status_message(vlm->status) << std::endl;
+                        }
+                    }  
+                    
+                    
+                    std::cout << "Enter your prompt or you can enter image path(for example C:\\chen\\t.jpg) to upload image: ";
+                }
             }
         }
 

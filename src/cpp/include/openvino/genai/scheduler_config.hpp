@@ -4,6 +4,7 @@
 #pragma once
 
 #include <cstddef>
+#include "cache_eviction.hpp"
 
 namespace ov::genai {
 struct SchedulerConfig {
@@ -24,11 +25,33 @@ struct SchedulerConfig {
     // whether to split prompt / generate to different scheduling phases
     bool dynamic_split_fuse = true;
 
+
+    /**
+     * Whether to use cache eviction for all sequences processed by this pipeline. When cache eviction is enabled,
+     * the per-sequence KV cache usage is capped by a user-configurable value, leading to memory savings at cost
+     * to generation quality.
+     */
+    bool use_cache_eviction = false;
+
+    /**
+     * Configuration struct for the cache eviction algorithm. Setting this has effect only if `use_cache_eviction` is
+     * set to `true`.
+     */
+    CacheEvictionConfig cache_eviction_config;
+
     //
     // vLLM-like settings
     //
 
     // max number of scheduled sequences (you can think of it as "max batch size")
     std::size_t max_num_seqs = 256;
+
+    // Enable caching of KV-blocks.
+    // When turned on all previously calculated KV-caches are kept in memory for future usages.
+    // KV-caches can be rewritten if KV-cache limit is reached, but blocks are not released.
+    // This results in more RAM usage, maximum RAM usage is determined by cache_size or num_kv_blocks parameters. 
+    // When turend off only KV-cache required for batch calculation is kept in memory and 
+    // when a sequence has finished genegartion its cache is released.
+    bool enable_prefix_caching = false;
 };
 }

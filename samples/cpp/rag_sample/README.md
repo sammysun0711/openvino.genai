@@ -41,6 +41,14 @@ python convert_ov_embedding.py
 Notice:
 - Please set the environment variable for [hf-mirror](https://hf-mirror.com/) and try more times, if optimum-cli failed to download model from HF with SSLError.
 - If you want to deploy embeddings on NPU, please install latest [Intel® NPU Driver on Windows](https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html), Intel® NPU Driver - Windows* 32.0.100.2688 is tested.
+
+#### Reranker
+Different from embedding model, reranker uses question and document as input and directly output similarity instead of embedding. You can get a relevance score by inputting query and passage to the reranker. The reranker is optimized based cross-entropy loss, so the relevance score is not bounded to a specific range.
+```
+set HF_ENDPOINT=https://hf-mirror.com
+optimum-cli export openvino --trust-remote-code --model BAAI/bge-reranker-base bge-reranker-base
+```
+
 ### Setup of PostgreSQL and Pgvector
 
 #### PostgreSQL
@@ -173,12 +181,14 @@ cd openvino.genai
 Usage: rag_sample_server.exe [options]
 
 options:
-  -h,    --help                        Show this help message and exit
+  -h,    --help                         Show this help message and exit
   --llm_model_path          PATH        Directory contains OV LLM model and tokenizers
   --llm_device              STRING      Specify which device used for llm inference
   --enable_multi_round_chat BOOL        Specify whether do multi-round chat (default: False)
   --embedding_model_path    PATH        Directory contains OV Bert model and tokenizers
   --embedding_device        STRING      Specify which device used for bert inference
+  --reranker_model_path     PATH        Directory contains OV Reranker model and tokenizers
+  --reranker_device         STRING      Specify which device used for reranker inference
   --db_connection           STRING      Specify which user, host, password, port, dbname
   --rag_connection          STRING      Specify host:port(default: "127.0.0.1:7890")
   --max_new_tokens          N           Specify max new generated tokens (default: 32)

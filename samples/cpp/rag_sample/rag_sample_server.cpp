@@ -45,6 +45,11 @@ int main(int argc, char** argv) try {
     auto handle_llm_unload = handle_master.get_handle_llm_unload(server_context);
     auto handle_llm_reset = handle_master.get_handle_llm_reset(server_context);
 
+    auto handle_vlm_init = handle_master.get_handle_vlm_init(server_context);
+    auto handle_vlm = handle_master.get_handle_vlm(server_context);
+    auto handle_vlm_streamer = handle_master.get_handle_vlm_streamer(server_context);
+    auto handle_vlm_image_upload = handle_master.get_handle_vlm_image_upload(server_context);
+    
     auto handle_embeddings_init = handle_master.get_handle_embeddings_init(server_context);
     auto handle_embeddings = handle_master.get_handle_embeddings(server_context);
     auto handle_embeddings_unload = handle_master.get_handle_embeddings_unload(server_context);
@@ -80,9 +85,15 @@ int main(int argc, char** argv) try {
     svr->Post("/image_embeddings_unload", handle_image_embeddings_unload);
     svr->Post("/llm_init", handle_llm_init);
     svr->Post("/llm_unload", handle_llm_unload);
-    svr->Post("/completions", handle_llm);
-    svr->Post("/stream", handle_llm_streamer);
+    svr->Post("/llm", handle_llm);
+    svr->Post("/llm_stream", handle_llm_streamer);
     svr->Post("/llm_reset", handle_llm_reset);
+    
+    svr->Post("/vlm_init", handle_vlm_init);
+    svr->Post("/vlm", handle_vlm);
+    svr->Post("/vlm_image_upload", handle_vlm_image_upload);
+    svr->Post("/vlm_stream", handle_vlm_streamer);
+
     svr->Post("/db_init", handle_db_init);
     svr->Post("/db_store_embeddings", handle_db_store_embeddings);
     svr->Post("/db_store_image_embeddings", handle_db_store_image_embeddings);

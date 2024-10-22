@@ -13,6 +13,7 @@
 
 #include "db_pgvector.hpp"
 #include "embeddings.hpp"
+#include "reranker.hpp"
 #include "httplib.h"
 #include "json.hpp"
 #include "state.hpp"
@@ -39,6 +40,18 @@ public:
         util::ServerContext& server_context_ref);
 
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_llm_reset(
+        util::ServerContext& server_context_ref);
+
+    std::function<void(const httplib::Request&, httplib::Response&)> get_handle_vlm_init(
+        util::ServerContext& server_context_ref);
+
+    std::function<void(const httplib::Request&, httplib::Response&)> get_handle_vlm(
+        util::ServerContext& server_context_ref);
+
+    std::function<void(const httplib::Request&, httplib::Response&)> get_handle_vlm_streamer(
+        util::ServerContext& server_context_ref);
+    
+    std::function<void(const httplib::Request&, httplib::Response&)> get_handle_vlm_image_upload(
         util::ServerContext& server_context_ref);
 
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_embeddings_init(
