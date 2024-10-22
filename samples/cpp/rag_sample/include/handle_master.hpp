@@ -63,6 +63,15 @@ public:
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_embeddings_unload(
         util::ServerContext& server_context_ref);
 
+    std::function<void(const httplib::Request&, httplib::Response&)> get_handle_image_embeddings_init(
+        util::ServerContext& server_context_ref);
+
+    std::function<void(const httplib::Request&, httplib::Response&)> get_handle_image_embeddings(
+        util::ServerContext& server_context_ref);
+
+    std::function<void(const httplib::Request&, httplib::Response&)> get_handle_image_embeddings_unload(
+        util::ServerContext& server_context_ref);
+
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_health(
         util::ServerContext& server_context_ref);
 
@@ -72,10 +81,16 @@ public:
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_db_store_embeddings(
         util::ServerContext& server_context_ref);
 
+    std::function<void(const httplib::Request&, httplib::Response&)> get_handle_db_store_image_embeddings(
+        util::ServerContext& server_context_ref);
+
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_db_retrieval(
         util::ServerContext& server_context_ref);
 
     std::function<void(const httplib::Request&, httplib::Response&)> get_handle_db_retrieval_llm(
+        util::ServerContext& server_context_ref);
+
+    std::function<void(const httplib::Request&, httplib::Response&)> get_handle_db_retrieval_image(
         util::ServerContext& server_context_ref);
 };
 

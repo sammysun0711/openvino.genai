@@ -54,12 +54,20 @@ int main(int argc, char** argv) try {
     auto handle_embeddings = handle_master.get_handle_embeddings(server_context);
     auto handle_embeddings_unload = handle_master.get_handle_embeddings_unload(server_context);
 
+    auto handle_image_embeddings_init = handle_master.get_handle_image_embeddings_init(server_context);
+    auto handle_image_embeddings = handle_master.get_handle_image_embeddings(server_context);
+    auto handle_image_embeddings_unload = handle_master.get_handle_image_embeddings_unload(server_context);
+
     auto handle_health = handle_master.get_handle_health(server_context);
 
     auto handle_db_init = handle_master.get_handle_db_init(server_context);
     auto handle_db_store_embeddings = handle_master.get_handle_db_store_embeddings(server_context);
+    auto handle_db_store_image_embeddings = handle_master.get_handle_db_store_image_embeddings(server_context);
+    
     auto handle_db_retrieval = handle_master.get_handle_db_retrieval(server_context);
     auto handle_db_retrieval_llm = handle_master.get_handle_db_retrieval_llm(server_context);
+    
+    auto handle_db_retrieval_image = handle_master.get_handle_db_retrieval_image(server_context);
 
     svr->Options(R"(.*)", [](const httplib::Request& req, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", req.get_header_value("Origin"));
@@ -72,6 +80,9 @@ int main(int argc, char** argv) try {
     svr->Post("/embeddings_init", handle_embeddings_init);
     svr->Post("/embeddings", handle_embeddings);
     svr->Post("/embeddings_unload", handle_embeddings_unload);
+    svr->Post("/image_embeddings_init", handle_image_embeddings_init);
+    svr->Post("/image_embeddings", handle_image_embeddings);
+    svr->Post("/image_embeddings_unload", handle_image_embeddings_unload);
     svr->Post("/llm_init", handle_llm_init);
     svr->Post("/llm_unload", handle_llm_unload);
     svr->Post("/llm", handle_llm);
@@ -85,8 +96,10 @@ int main(int argc, char** argv) try {
 
     svr->Post("/db_init", handle_db_init);
     svr->Post("/db_store_embeddings", handle_db_store_embeddings);
+    svr->Post("/db_store_image_embeddings", handle_db_store_image_embeddings);
     svr->Post("/db_retrieval", handle_db_retrieval);
     svr->Post("/db_retrieval_llm", handle_db_retrieval_llm);
+    svr->Post("/db_retrieval_image", handle_db_retrieval_image);
 
     // Find the position of the colon
     std::string rag_connection = server_context.args.rag_connection;

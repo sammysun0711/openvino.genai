@@ -29,9 +29,13 @@ static auto usage() -> void {
               << "  help     \n"
               << "  init_embeddings     \n"
               << "  embeddings          \n"
+              << "  init_image_embeddings     \n"
+              << "  image_embeddings          \n"
               << "  db_retrieval          \n"
               << "  db_retrieval_llm          \n"
+              << "  db_retrieval_image          \n"
               << "  embeddings_unload          \n"
+              << "  image_embeddings_unload          \n"
               << "  llm_init            \n"
               << "  llm_reset  \n"
               << "  llm         \n"
@@ -66,8 +70,8 @@ int main() {
     usage();
     bool status = true;
     cli.set_connection_timeout(100, 0);  // set default timeout to 100 seconds
-    cli.set_read_timeout(100, 0);  // set default timeout to 100 seconds    
-    cli.set_write_timeout(100, 0);   // set default timeout to 100 seconds
+    cli.set_read_timeout(100, 0);        // set default timeout to 100 seconds
+    cli.set_write_timeout(100, 0);       // set default timeout to 100 seconds
 
     while (std::cin >> command && command != "exit") {
         if (command == "help") {
@@ -80,12 +84,20 @@ int main() {
                 std::cout << "Init embeddings failed\n";
                 std::cout << "Status: " << httplib::status_message(init_embeddings->status) << std::endl;
             }
-        } else if (command == "embeddings") {
-            std::cout << "This is the unit test for embeddings: \n";
+        } else if (command == "init_image_embeddings") {
+            auto init_image_embeddings = cli.Post("/image_embeddings_init", "", "");
+            if (init_image_embeddings->status == httplib::StatusCode::OK_200) {
+                std::cout << init_image_embeddings->body << "\n";
+            } else {
+                std::cout << "Init embeddings failed\n";
+                std::cout << "Status: " << httplib::status_message(init_image_embeddings->status) << std::endl;
+            }
+        } else if (command == "image_embeddings") {
+            std::cout << "This is the unit test for image embeddings: \n";
             std::cout << "Path of test json file: \n";
             std::string path;
             std::getline(std::cin, path);
-            if (path == "Stop!") 
+            if (path == "Stop!")
                 break;
             while (true) {
                 getline(std::cin, path);
@@ -96,8 +108,39 @@ int main() {
                         std::cout << "Succeed to read the json file." << std::endl;
                     } else {
                         std::cout << "Failed to read json file" << std::endl;
-                    }  
-                         
+                    }
+
+                    std::cout << "image embeddings test file path: " << path << "\n";
+
+                    std::ifstream f(path);
+                    json data = json::parse(f);
+                    auto image_embeddings = cli.Post("/image_embeddings", data.dump(), "application/json");
+                    if (image_embeddings->status == httplib::StatusCode::OK_200) {
+                        std::cout << image_embeddings->body << "\n";
+                    } else {
+                        std::cout << "Image embeddings failed\n";
+                        std::cout << "Status: " << httplib::status_message(image_embeddings->status) << std::endl;
+                    }
+                }
+            }
+        } else if (command == "embeddings") {
+            std::cout << "This is the unit test for embeddings: \n";
+            std::cout << "Path of test json file: \n";
+            std::string path;
+            std::getline(std::cin, path);
+            if (path == "Stop!")
+                break;
+            while (true) {
+                getline(std::cin, path);
+                if (path.length() != 0) {
+                    if (path == "exit")
+                        break;
+                    if (fileExists(path)) {
+                        std::cout << "Succeed to read the json file." << std::endl;
+                    } else {
+                        std::cout << "Failed to read json file" << std::endl;
+                    }
+
                     std::cout << "path: " << path << "\n";
 
                     std::ifstream f(path);
@@ -174,7 +217,26 @@ int main() {
                     }
                 }
             }
-        } else if (command == "db_retrieval_llm") {
+        } else if (command == "db_retrieval_image") {
+            std::string image_path;
+            std::cout << "Enter your image path for DB: ";
+            while (true) {
+                getline(std::cin, image_path);
+                if (image_path.length() != 0) {
+                    if (image_path == "exit")
+                        break;
+                    auto db_retrieval_image = cli.Post("/db_retrieval_image", image_path, "text/plain");
+                    custom_sleep(1);
+                    if (db_retrieval_image->status == httplib::StatusCode::OK_200) {
+                        std::cout << "db_retrieval_image->body: " << db_retrieval_image->body << "\n";
+                    } else {
+                        std::cout << "db_retrieval_image failed\n";
+                        std::cout << "Status: " << httplib::status_message(db_retrieval_image->status) << std::endl;
+                    }
+                }
+            }
+        }
+        else if (command == "db_retrieval_llm") {
             std::string query_prompt;
             std::cout << "Enter your prompt for DB: ";
             while (true) {
@@ -207,6 +269,15 @@ int main() {
             } else {
                 std::cout << "Unload llm failed\n";
                 std::cout << "Status: " << httplib::status_message(llm_unload->status) << std::endl;
+            }
+        }
+        else if (command == "image_embeddings_unload") {
+            auto image_embeddings_unload = cli.Post("/image_embeddings_unload", "", "");
+            if (image_embeddings_unload->status == httplib::StatusCode::OK_200) {
+                std::cout << "Unload image embeddings success\n";
+            } else {
+                std::cout << "Unload image embeddings failed\n";
+                std::cout << "Status: " << httplib::status_message(image_embeddings_unload->status) << std::endl;
             }
         } else if (command == "embeddings_unload") {
             auto embeddings_unload = cli.Post("/embeddings_unload", "", "");

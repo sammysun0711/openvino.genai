@@ -250,6 +250,27 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
     return handle_embeddings_init;
 }
 
+std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_handle_image_embeddings_init(
+    util::ServerContext& server_context_ref) {
+    const auto handle_init = [&server_context_ref](const httplib::Request& req_embedding,
+                                                              httplib::Response& res_embedding) {
+        if (server_context_ref.image_embeddings_state == State::STOPPED || server_context_ref.image_embeddings_state == State::ERR) {
+            server_context_ref.image_embeddings_pointer = std::make_shared<BlipModel>();
+            server_context_ref.image_embeddings_pointer->init(server_context_ref.args.image_embedding_model_path,
+                                                       server_context_ref.args.image_embedding_device);
+            server_context_ref.image_embeddings_state = State::IDLE;
+            res_embedding.set_header("Access-Control-Allow-Origin", req_embedding.get_header_value("Origin"));
+            res_embedding.set_content("Init image embeddings success.", "text/plain");
+        } else {
+            res_embedding.set_header("Access-Control-Allow-Origin", req_embedding.get_header_value("Origin"));
+            res_embedding.set_content("Cannot init image embeddings, cause image embeddings is already be initialized.",
+                                      "text/plain");
+        }
+    };
+
+    return handle_init;
+}
+
 std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_handle_db_init(
     util::ServerContext& server_context_ref) {
     const auto handle_db_init = [&server_context_ref](const httplib::Request& req_db, httplib::Response& res_db) {
@@ -304,6 +325,73 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
 
     return handle_embeddings;
 }
+
+std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_handle_image_embeddings(
+    util::ServerContext& server_context_ref) {
+    const auto handle = [&server_context_ref](const httplib::Request& req_embedding,
+                                                         httplib::Response& res_embedding) {
+        if (server_context_ref.image_embeddings_state == State::IDLE) {
+            res_embedding.set_header("Access-Control-Allow-Origin", req_embedding.get_header_value("Origin"));
+            json json_file = json::parse(req_embedding.body);
+            std::cout << "get json_file successed\n";
+            std::vector<std::string> inputs;
+            for (auto& elem : json_file["data"])
+                inputs.push_back(elem);
+            std::cout << "get inputs successed\n";
+            server_context_ref.image_embeddings_state = State::RUNNING;
+
+            std::vector<std::vector<float>> res_new = server_context_ref.image_embeddings_pointer->encode_images(inputs);
+            // TODO: save to db
+            server_context_ref.image_embeddings_state = State::IDLE;
+            res_embedding.set_content("Image Embeddings success", "text/plain");
+        } else {
+            res_embedding.set_header("Access-Control-Allow-Origin", req_embedding.get_header_value("Origin"));
+            res_embedding.set_content(
+                "Cannot do image embeddings, cause image embeddings inferrequest is now not initialized or busy, check "
+                "the stats of blip.",
+                "text/plain");
+        }
+    };
+
+    return handle;
+}
+
+std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_handle_db_store_image_embeddings(
+    util::ServerContext& server_context_ref) {
+    const auto handle_db_store_embeddings = [&server_context_ref](const httplib::Request& req_insert,
+                                                                  httplib::Response& res_insert) {
+        if (server_context_ref.db_state == State::IDLE) {
+            res_insert.set_header("Access-Control-Allow-Origin", req_insert.get_header_value("Origin"));
+            json json_file = json::parse(req_insert.body);
+            std::cout << "get json_file successed\n";
+            std::vector<std::string> inputs;
+            for (auto& elem : json_file["data"])
+                inputs.push_back(elem);
+            server_context_ref.image_num = inputs.size();
+            std::cout << "get inputs successed\n";
+            server_context_ref.db_state = State::RUNNING;
+
+            std::vector<std::vector<float>> embeddings_res =
+                server_context_ref.image_embeddings_pointer->encode_images(inputs);
+            std::cout << "inputs image embedding successed\n";
+
+            server_context_ref.db_pgvector_pointer->db_store_embeddings(inputs, embeddings_res);
+
+            std::cout << "inputs image embedding successed\n";
+
+            server_context_ref.db_state = State::IDLE;
+            res_insert.set_content("insert success", "text/plain");
+        } else {
+            res_insert.set_header("Access-Control-Allow-Origin", req_insert.get_header_value("Origin"));
+            res_insert.set_content("Cannot insert, cause insert inferrequest is now not initialized or busy, check "
+                                   "the stats of insert.",
+                                   "text/plain");
+        }
+    };
+
+    return handle_db_store_embeddings;
+}
+
 
 std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_handle_db_store_embeddings(
     util::ServerContext& server_context_ref) {
@@ -375,6 +463,45 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
     return handle_db_store_embeddings;
 }
 
+std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_handle_db_retrieval_image(
+    util::ServerContext& server_context_ref) {
+    const auto handle_db_store_embeddings = [&server_context_ref](const httplib::Request& req_retrieval,
+                                                                  httplib::Response& res_retrieval) {
+        if (server_context_ref.db_state == State::IDLE) {
+            res_retrieval.set_header("Access-Control-Allow-Origin", req_retrieval.get_header_value("Origin"));
+            std::cout << "req_retrieval.body: " << req_retrieval.body << "\n";
+            std::string image_path = req_retrieval.body;
+            server_context_ref.db_state = State::RUNNING;
+
+            std::vector<std::string> query;
+            query.push_back(image_path);
+            std::vector<std::vector<float>> embeddings_query =
+                server_context_ref.image_embeddings_pointer->encode_images(query);
+            server_context_ref.retrieval_res =
+                server_context_ref.db_pgvector_pointer->db_retrieval(server_context_ref.image_num,
+                                                                     query,
+                                                                     embeddings_query);
+            std::cout << "HandleMaster::db_retrieval successed\n";
+            std::string response;
+            for (size_t i = 0; i < server_context_ref.retrieval_res.size(); i++) {
+                response += (server_context_ref.retrieval_res[i] + " ");
+            }
+            server_context_ref.db_state = State::IDLE;
+
+            res_retrieval.set_content(response, "text/plain");
+        } else {
+            res_retrieval.set_header("Access-Control-Allow-Origin", res_retrieval.get_header_value("Origin"));
+            res_retrieval.set_content(
+                "Cannot retrieve, cause retrieve inferrequest is now not initialized or busy, check "
+                "the stats of retrieve.",
+                "text/plain");
+        }
+    };
+
+    return handle_db_store_embeddings;
+}
+
+
 std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_handle_db_retrieval_llm(
     util::ServerContext& server_context_ref) {
     const auto handle_db_store_embeddings = [&server_context_ref](const httplib::Request& req_retrieval,
@@ -443,6 +570,18 @@ std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::g
 
     return handle_embeddings_unload;
 }
+
+std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_handle_image_embeddings_unload(
+    util::ServerContext& server_context_ref) {
+    const auto handle_unload = [&server_context_ref](const httplib::Request& req_embedding,
+                                                                httplib::Response& res_embedding) {
+        server_context_ref.image_embeddings_pointer.reset();
+        server_context_ref.image_embeddings_state = State::STOPPED;
+    };
+
+    return handle_unload;
+}
+
 
 std::function<void(const httplib::Request&, httplib::Response&)> HandleMaster::get_handle_health(
     util::ServerContext& server_context_ref) {
