@@ -13,7 +13,7 @@
 #include "embeddings.hpp"
 #include "reranker.hpp"
 #include "state.hpp"
-#include<queue>
+#include <queue>
 #include "blip.hpp"
 #include "db_pgvector.hpp"
 

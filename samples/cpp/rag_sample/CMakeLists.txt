@@ -88,7 +88,7 @@ set(APP_DEPS_SOURCE
 )
 
 add_executable(${GUI_APP_NAME} rag_sample_gui.cpp
-    src/handle_master.cpp
+    # src/handle_master.cpp
     src/embeddings.cpp
     src/db_pgvector.cpp
     src/blip.cpp
