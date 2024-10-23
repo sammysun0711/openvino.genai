@@ -148,7 +148,7 @@ Two steps for pgvector:
    - Cmake: If Cmake not installed in the terminal `Command Prompt`, please [download](https://cmake.org/download/) and install Cmake or use the terminal `Developer Command Prompt for VS 2022` instead.
    - Python: the source code building of thirdparty/openvino_tokenizers needs Python3. ([Python 3.11.9](https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe) is tested)
 2. Download OpenVINO Runtime:
-Download [2024.3 rc2](https://storage.openvinotoolkit.org/repositories/openvino/packages/pre-release/2024.3.0rc2/windows/) from *OpenVINO™ archives*. C++ GenAI pipeline will use the OpenVINO Runtime Dynamic-link library(dll) from the downloaded zip file.
+Download [2024.5](https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/nightly/) from *OpenVINO™ archives*. C++ GenAI pipeline will use the OpenVINO Runtime Dynamic-link library(dll) from the downloaded zip file.
 3. Build and install OpenVINO GenAI:
 Extract the zip file in any location and set the environment variables with dragging this `setupvars.bat` in the terminal `Command Prompt`. (`setupvars.ps1` is used for terminal `PowerShell`).
 `<INSTALL_DIR>` below refers to the extraction location.
@@ -165,7 +165,7 @@ Run the following CMD in the terminal `Command Prompt`.
     - If Cmake completed without errors, but not find exe, please open the `.\build\OpenVINOGenAI.sln` in VS2022, and set the solution configuration as Release instead of Debug, Then build the llm project within VS2022 again.
     - openvino_tokenizers:
      For development, we download source code of openvino_tokenizers in thirdparty folder(`git submodule update --init`) and build the openvino_tokenizers with openvino-genai. it needs several minutes to build. Set 8 for -j option to specify the number of parallel jobs. 
-     In the deployment, the rag-sample could download [openvino_genai package](https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2024.2/windows) which includes all the DLLs of the openvino_tokenizers, openvino_genai and openvino runtime(must be the same specific version).
+     In the deployment, the rag-sample could download [openvino_genai package](https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/nightly/) which includes all the DLLs of the openvino_tokenizers, openvino_genai and openvino runtime(must be the same specific version).
 
     Install on Windows: 
     - Use following CMD lines to copy all the DLL files of PostgreSQL, OpenVINO Runtime, TBB and openvino-genai into the release folder. The SQL DLL files locate in the default path, "C:\Program Files\PostgreSQL\16\bin". 
@@ -344,8 +344,9 @@ Steps for GUI usage:
 Notice: copy OV IR folders blip_vqa_base, bge-small-zh-v1.5, TinyLlama-1.1B-Chat-v1.0 within the same directory `openvino.genai\samples\cpp\rag_sample\models`, which is used for GUI model loading.
 1. Click `select image` for query image and use one of 100 images from unzipped folder `samples\cpp\rag_sample\scripts\val2017_100` 
 2. Set the number of top k retrieval results: default 10 most similar images.
+   
 Here is a sample video to demonstrate GUI usage on client platform.
-![photo-search-demo](https://github.com/user-attachments/assets/8c92e12a-ddb8-421f-a30d-006766567fa0)
+![photo-search-medium (1)](https://github.com/user-attachments/assets/6f846efe-05f4-4ea6-95bf-27e41bdaa3ed)
 
 #### Notice:
 - To enable Unicode characters for Windows cmd open `Region` settings from `Control panel`. `Administrative`->`Change system locale`->`Beta: Use Unicode UTF-8 for worldwide language support`->`OK`. Reboot.
