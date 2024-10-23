@@ -344,6 +344,8 @@ Steps for GUI usage:
 Notice: copy OV IR folders blip_vqa_base, bge-small-zh-v1.5, TinyLlama-1.1B-Chat-v1.0 within the same directory `openvino.genai\samples\cpp\rag_sample\models`, which is used for GUI model loading.
 1. Click `select image` for query image and use one of 100 images from unzipped folder `samples\cpp\rag_sample\scripts\val2017_100` 
 2. Set the number of top k retrieval results: default 10 most similar images.
+Here is a sample video to demonstrate GUI usage on client platform.
+![photo-search-demo](https://github.com/user-attachments/assets/8c92e12a-ddb8-421f-a30d-006766567fa0)
 
 #### Notice:
 - To enable Unicode characters for Windows cmd open `Region` settings from `Control panel`. `Administrative`->`Change system locale`->`Beta: Use Unicode UTF-8 for worldwide language support`->`OK`. Reboot.
