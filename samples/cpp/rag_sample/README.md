@@ -11,11 +11,13 @@ Here is OpenVINO GenAI Server Architecure:
 ![OpenVINO GenAI Server Architecture](https://github.com/user-attachments/assets/faa394cf-4a03-48db-990e-0a44102b787d "OpenVINO GenAI Server Architecture")
 
 
-## Use Case 1: C++ RAG Sample that supports most popular models like LLaMA 3
+## RAG Sample
+This example showcases for Retrieval-Augmented Generation based on text-generation Large Language Models (LLMs): `LLaMA`, `Qwen` and other models with the same signature and bert model for embedding feature extraction. The sample fearures `ov::genai::LLMPipeline` and configures it for the chat scenario. There is also a Jupyter [notebook](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/254-llm-chatbot) which provides an example of LLM-powered RAG in Python. 
+This RAG sample project is still under development. Now we support the following features:
+1. Multi-Vector Retriever for RAG on text: QA over Document
+2. Multi-Vector Retriever for RAG on image: Photo search with DB retrieval
 
-This example showcases for Retrieval-Augmented Generation based on text-generation Large Language Models (LLMs): `chatglm`, `LLaMA`, `Qwen` and other models with the same signature and bert model for embedding feature extraction. The sample fearures `ov::genai::LLMPipeline` and configures it for the chat scenario. There is also a Jupyter [notebook](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/254-llm-chatbot) which provides an example of LLM-powered RAG in Python.
-
-### Download and convert the model and tokenizers
+### Model Preparation: Download and convert the model and tokenizers
 
 The `--upgrade-strategy eager` option is needed to ensure `optimum-intel` is upgraded to the latest version.
 Windows:([Python 3.11.9](https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe) is tested)
@@ -48,6 +50,9 @@ Different from embedding model, reranker uses question and document as input and
 set HF_ENDPOINT=https://hf-mirror.com
 optimum-cli export openvino --trust-remote-code --model BAAI/bge-reranker-base bge-reranker-base
 ```
+#### Image Embedding
+BLIP is a language-image pre-training framework for unified vision-language understanding and generation. Here, we use BLIP for image embedding and realize the photo search function with DB image retrieval.
+Use samples\cpp\rag_sample\scripts\blip_test.ipynb to convert HF model to OV model and also save the pooling project model for alignment with text embedding. 
 
 ### Setup of PostgreSQL and Pgvector
 
@@ -172,9 +177,27 @@ Run the following CMD in the terminal `Command Prompt`.
     xcopy "<INSTALL_DIR>\runtime\bin\intel64\Release\*.dll" ".\build\samples\cpp\rag_sample\Release" /s /i
     xcopy "<INSTALL_DIR>\runtime\3rdparty\tbb\bin\*.dll" ".\build\samples\cpp\rag_sample\Release" /s /i
     ```
-### Usage:
+### Usages: 
+1. QA over Document
+2. Photo Search with DB retrieval
+#### Usage 1: QA over Document
+Here is a sample video to demonstrate RAG sample use case on client platform.
+
+https://github.com/sammysun0711/openvino.genai/assets/102195992/c596cd86-dc3c-438f-9fa7-d6395951cec5
+
+
+The video shows the complete process of RAG:
+1. C++ RAG Server: Init server
+2. Python client: 
+   - Init DB
+   - Init Embedding
+   - Embedding
+   - Store embedding output into DB 
+3. C++ RAG client:
+   - Init LLM
+   - DB Documents Retrival + Chat with LLM
 #### Launch RAG Server
-Please use the password you set in the PostgreSQL installation wizard.
+Launch 1st command line terminal for server.
 ```bat
 cd openvino.genai
 .\build\samples\cpp\rag_sample\Release\rag_sample_server.exe --llm_model_path TinyLlama-1.1B-Chat-v1.0 --llm_device CPU --embedding_model_path bge-small-zh-v1.5 --embedding_device CPU  --db_connection "user=postgres host=localhost password=openvino port=5432 dbname=postgres"
@@ -199,7 +222,7 @@ options:
   --repeat_penalty          N           Specify penalize sequence of tokens (default: 1.0, means no repeat penalty)
   --verbose                 BOOL        Display verbose output including config/system/performance info
 ```
-
+Notice: Please use the password you set in the PostgreSQL installation wizard.
 #### Lanuch Python Client
 Launch 2nd command line terminal, use python client to send the message of DB init and send the document chunks to DB for embedding and storing.
 Please check the setup of python environment with samples\python\rag_sample\README.md
@@ -298,24 +321,31 @@ embedding infer successed
 ```
   </details> 
 
-#### Complete Usage of RAG Sample
-Here is a sample video to demonstrate RAG sample use case on client platform.
+#### Usage 2: Photo Search with DB retrieval
+steps:
+1. use python client to create image vector DB
+2. use GUI to search image
+#### Launch RAG Server
+```bat
+cd openvino.genai
+.\build\samples\cpp\rag_sample\Release\rag_sample_server.exe --llm_model_path TinyLlama-1.1B-Chat-v1.0 --llm_device CPU --embedding_model_path bge-small-zh-v1.5  --embedding_device CPU --image_embedding_model_path blip_vqa_base_ov  --image_embedding_device CPU
+```
+#### Launch python client for image vector DB setup
+Use `samples\cpp\rag_sample\scripts\client_get_image_embeddings.ipynb` to setup image vector DB with 100 images from `coco2017/val2017`.
 
-https://github.com/sammysun0711/openvino.genai/assets/102195992/c596cd86-dc3c-438f-9fa7-d6395951cec5
+#### Launch C++ GUI client for image retrieval
+```bat
+cd openvino.genai
+.\build\samples\cpp\rag_sample\Release\rag_sample_gui.exe
+```
+Steps for GUI usage:
+1. Select device for image embedding of query image: CPU or GPU(currently not support NPU)
+2. Click `select model` and add `openvino.genai\samples\cpp\rag_sample\models` path within GUI
+Notice: copy OV IR folders blip_vqa_base, bge-small-zh-v1.5, TinyLlama-1.1B-Chat-v1.0 within the same directory `openvino.genai\samples\cpp\rag_sample\models`, which is used for GUI model loading.
+1. Click `select image` for query image and use one of 100 images from unzipped folder `samples\cpp\rag_sample\scripts\val2017_100` 
+2. Set the number of top k retrieval results: default 10 most similar images.
 
-
-The video shows the complete process of RAG:
-1. C++ RAG Server: Init server
-2. Python client: 
-   - Init DB
-   - Init Embedding
-   - Embedding
-   - Store embedding output into DB 
-3. C++ RAG client:
-   - Init LLM
-   - DB Documents Retrival + Chat with LLM
-
-Notice:
+#### Notice:
 - To enable Unicode characters for Windows cmd open `Region` settings from `Control panel`. `Administrative`->`Change system locale`->`Beta: Use Unicode UTF-8 for worldwide language support`->`OK`. Reboot.
 - We use [cpp-httplib](https://github.com/yhirose/cpp-httplib) for connection. Larger LLM and longer max_new_tokens need more connection time(default 100 second in rag_sample_client.cpp).
 - Besides TinyLlama-1.1B-Chat-v1.0, Qwen2-7B-Instruct is also tested.
