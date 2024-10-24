@@ -18,7 +18,7 @@ This RAG sample project is still under development. Now we support the following
 2. Multi-Vector Retriever for RAG on image: Photo search with DB retrieval
 
 ### Model Preparation: Download and convert the model and tokenizers
-
+Please prepare the model according to the required functional modules.
 The `--upgrade-strategy eager` option is needed to ensure `optimum-intel` is upgraded to the latest version.
 Windows:([Python 3.11.9](https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe) is tested)
 #### LLM
@@ -30,6 +30,7 @@ python3 -m pip install --upgrade-strategy eager -r ../../requirements.txt
 set HF_ENDPOINT=https://hf-mirror.com
 optimum-cli export openvino --trust-remote-code --model TinyLlama/TinyLlama-1.1B-Chat-v1.0 TinyLlama-1.1B-Chat-v1.0
 ```
+
 #### Embedding
 BGE embedding is a general Embedding Model. The model is pre-trained using RetroMAE and trained on large-scale pair data using contrastive learning.
 Here we provide python script `convert_ov_embedding.py` to download light-weight HF model `BAAI/bge-small-zh-v1.5` and generate one static embedding model for all devices.
@@ -53,6 +54,15 @@ optimum-cli export openvino --trust-remote-code --model BAAI/bge-reranker-base b
 #### Image Embedding
 BLIP is a language-image pre-training framework for unified vision-language understanding and generation. Here, we use BLIP for image embedding and realize the photo search function with DB image retrieval.
 Use samples\cpp\rag_sample\scripts\blip_test.ipynb to convert HF model to OV model and also save the pooling project model for alignment with text embedding. 
+
+#### VLM
+follow the guide from [visual_language_chat](https://github.com/sammysun0711/openvino.genai/tree/rag_sample/samples/cpp/visual_language_chat "visual_language_chat") to get VLM OpenVINO IR model.
+```bat
+python -m venv rag-sample
+rag-sample\Scripts\activate
+cd openvino.genai\samples\cpp\visual_language_chat
+export_MiniCPM-V-2_6.py miniCPM-V-2_6
+```
 
 ### Setup of PostgreSQL and Pgvector
 
@@ -204,12 +214,16 @@ cd openvino.genai
 Usage: rag_sample_server.exe [options]
 
 options:
-  -h,    --help                         Show this help message and exit
+  -h,    --help                        Show this help message and exit
   --llm_model_path          PATH        Directory contains OV LLM model and tokenizers
-  --llm_device              STRING      Specify which device used for llm inference
   --enable_multi_round_chat BOOL        Specify whether do multi-round chat (default: False)
+  --llm_device              STRING      Specify which device used for llm inference
+  --vlm_model_path          PATH        Directory contains OV VLM model and tokenizers
+  --vlm_device              STRING      Specify which device used for vlm inference
   --embedding_model_path    PATH        Directory contains OV Bert model and tokenizers
   --embedding_device        STRING      Specify which device used for bert inference
+  --image_embedding_model_path   PATH        Directory contains OV blip vision model and projection model
+  --image_embedding_device       STRING      Specify which device used for blip inference
   --reranker_model_path     PATH        Directory contains OV Reranker model and tokenizers
   --reranker_device         STRING      Specify which device used for reranker inference
   --db_connection           STRING      Specify which user, host, password, port, dbname
@@ -258,13 +272,20 @@ options:
   help
   init_embeddings
   embeddings
+  init_image_embeddings
+  image_embeddings
   db_retrieval
   db_retrieval_llm
+  db_retrieval_image
   embeddings_unload
+  image_embeddings_unload
   llm_init
+  llm_reset
   llm
   llm_unload
-  health_cheak
+  vlm_init
+  vlm
+  health_check
   exit
 ```
   We provide the unit test for embedding with json file.
@@ -282,13 +303,20 @@ options:
   help
   init_embeddings
   embeddings
+  init_image_embeddings
+  image_embeddings
   db_retrieval
   db_retrieval_llm
+  db_retrieval_image
   embeddings_unload
+  image_embeddings_unload
   llm_init
+  llm_reset
   llm
   llm_unload
-  health_cheak
+  vlm_init
+  vlm
+  health_check
   exit
 init_embeddings
 Init embeddings success.
@@ -353,3 +381,49 @@ Here is a sample video to demonstrate GUI usage on client platform.
 - We use [cpp-httplib](https://github.com/yhirose/cpp-httplib) for connection. Larger LLM and longer max_new_tokens need more connection time(default 100 second in rag_sample_client.cpp).
 - Besides TinyLlama-1.1B-Chat-v1.0, Qwen2-7B-Instruct is also tested.
 - See the list of [supported models](https://github.com/openvinotoolkit/openvino.genai/blob/releases/2024/2/src/docs/SUPPORTED_MODELS.md).
+
+#### Usage 3: Chat with images via MiniCPM
+#### Launch RAG Server
+```bat
+.\build\samples\cpp\rag_sample\Release\rag_sample_server.exe --vlm_model_path miniCPM-V-2_6 --vlm_device CPU
+```
+#### Lanuch RAG Client
+Launch 2nd command line terminal
+```bat
+.\build\samples\cpp\rag_sample\Release\rag_sample_client.exe
+Init client
+Init client finished
+Usage:  [options]
+
+options:
+  help
+  init_embeddings
+  embeddings
+  init_image_embeddings
+  image_embeddings
+  db_retrieval
+  db_retrieval_llm
+  db_retrieval_image
+  embeddings_unload
+  image_embeddings_unload
+  llm_init
+  llm_reset
+  llm
+  llm_unload
+  vlm_init
+  vlm
+  health_check
+  exit
+vlm_init
+Init vlm success.
+vlm
+Enter your prompt or you can enter image path(for example C:\chen\t.jpg) to upload image: C:\chen\t.jpg
+Succeed to read the image file.
+Success uploaded
+Enter your prompt or you can enter image path(for example C:\chen\t.jpg) to upload image: what is in the box?
+cat
+Enter your prompt or you can enter image path(for example C:\chen\t.jpg) to upload image: give me more detail
+The image shows a domestic cat lying on its back inside a cardboard box. The cat appears to be in a relaxed or playful state, with its eyes closed and paws stretched out. The box is open and placed on a carpeted floor, suggesting an indoor setting. The background is minimalistic, featuring a portion of a white sofa, which indicates that the scene is likely in a living room or a similar space. The lighting is soft and natural, possibly coming from a nearby window, which contributes to the calm and cozy atmosphere of the image.
+```
+#### Notice: You can upload a new image to the server by typing the image address (without spaces) on the client side and continue the chat.
+![vlm](images/vlm.png)

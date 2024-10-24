@@ -212,6 +212,8 @@ public:
             << "  --llm_model_path          PATH        Directory contains OV LLM model and tokenizers\n"
             << "  --enable_multi_round_chat BOOL        Specify whether do multi-round chat (default: False)\n"
             << "  --llm_device              STRING      Specify which device used for llm inference\n"
+            << "  --vlm_model_path          PATH        Directory contains OV VLM model and tokenizers\n"
+            << "  --vlm_device              STRING      Specify which device used for vlm inference\n"
             << "  --embedding_model_path    PATH        Directory contains OV Bert model and tokenizers\n"
             << "  --embedding_device        STRING      Specify which device used for bert inference\n"
             << "  --image_embedding_model_path   PATH        Directory contains OV blip vision model and projection model\n"
