@@ -10,6 +10,7 @@ def parser_text(path, n):
         lines = file.readlines()
         # Iterate over each line in the list
         get_text = False
+        max_rss_mem = 0
         for line in lines:
             if "input_token_count:" in line:
                 input_token_count = line.strip().split(" ")[-1]
@@ -21,6 +22,8 @@ def parser_text(path, n):
                 avg_2nd_tokens_latency = line.split(" ")[-2]
             elif "avg_2nd_token_throughput" in line:
                 avg_2nd_token_throughput = line.split(" ")[-2]
+            elif "max_rss_mem" in line:
+                max_rss_mem = float(line.strip().split(" ")[-1]) if float(line.strip().split(" ")[-1]) > max_rss_mem else max_rss_mem
             elif not get_text and line.strip() != "":
                 text = line
                 get_text = True
@@ -34,7 +37,7 @@ def parser_text(path, n):
         print(f"avg_1st_token_latency: {avg_1st_token_latency} ms/token")
         print(f"avg_2nd_tokens_latency: {avg_2nd_tokens_latency} ms/token")
         print(f"avg_2nd_token_throughput: {avg_2nd_token_throughput} tokens/sec")
-
+        print(f"max_rss_mem: {max_rss_mem} MB")
 
 def main():
     # Define the path to the Python script you want to run

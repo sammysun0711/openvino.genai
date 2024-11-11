@@ -62,6 +62,9 @@ def print_metrics(
     output_str = ''
     if max_rss_mem != '' and max_rss_mem > -1:
         output_str += 'Max rss memory cost: {:.2f}MBytes, '.format(max_rss_mem)
+        with open("log.txt", "a") as file:
+            file.write('max_rss_mem: ' + str(max_rss_mem))
+            file.write('\r\n')
     if max_uss_mem != '' and max_uss_mem > -1:
         output_str += 'max uss memory cost: {:.2f}MBytes, '.format(max_uss_mem)
     if max_shared_mem != '' and max_shared_mem > -1:
