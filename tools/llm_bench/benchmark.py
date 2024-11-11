@@ -163,6 +163,9 @@ def main():
     logging_kwargs = {"encoding": "utf-8"} if sys.version_info[1] > 8 else {}
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=os.environ.get("LOGLEVEL", log.INFO), stream=sys.stdout, **logging_kwargs)
     args = get_argprser()
+    with open("log.txt", "a") as file:
+        file.write('output_token_count: ' + str(args.infer_count))
+        file.write('\r\n')
     model_path, framework, model_args, model_name = llm_bench_utils.model_utils.analyze_args(args)
 
     # Set the device for running OpenVINO backend for torch.compile()

@@ -1,5 +1,7 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
 numpy
+tokenizers==0.19.0
+transformers==4.44
 --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
 openvino
 openvino-tokenizers

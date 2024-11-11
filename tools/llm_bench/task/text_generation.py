@@ -198,6 +198,11 @@ def run_text_generation_genai(input_text, num, model, tokenizer, args, iter_data
     generation_result = model.generate(input_text_list, max_new_tokens=max_gen_tokens, num_beams=args["num_beams"], do_sample=False)
     end = time.perf_counter()
     generated_text = generation_result.texts
+    with open("log.txt", "a") as file:
+    # Write the string to the file
+        file.write(generated_text[0])
+        file.write('\r\n')
+                
     perf_metrics = generation_result.perf_metrics
 
     if (args['mem_consumption'] == 1 and num == 0) or args['mem_consumption'] == 2:

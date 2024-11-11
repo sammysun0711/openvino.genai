@@ -170,6 +170,19 @@ def output_avg_statis_tokens(prompt_dict, prompt_idx_list, iter_data_list, batch
                 prompt_dict[p_idx] = '\n{} 1st step of unet latency: {}, ' \
                     '2nd steps of unet latency: {}, 2nd steps throughput: {}' \
                     .format(prefix, avg_1st_token_latency, avg_2nd_tokens_latency, avg_2nd_token_tput)
+            with open("log.txt", "a") as file:
+                # Append the list of strings to the file
+                file.write('input_token_count: ' + str(avg_input_size))
+                file.write('\r\n')
+
+                file.write('avg_1st_token_latency: ' + str(avg_1st_token_latency))
+                file.write('\r\n')
+
+                file.write('avg_2nd_tokens_latency: ' + str(avg_2nd_tokens_latency))
+                file.write('\r\n')
+
+                file.write('avg_2nd_token_throughput: ' + str(avg_2nd_token_tput))
+                file.write('\r\n')
 
 
 def print_average(iter_data_list, prompt_idx_list, batch_size, is_text_gen=False, loop_idx=-1):
