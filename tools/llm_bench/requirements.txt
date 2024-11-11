@@ -2,10 +2,10 @@
 numpy
 tokenizers==0.19.0
 transformers==4.44
---extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
-openvino
-openvino-tokenizers
-openvino_genai
+--extra-index-url https://storage.openvinotoolkit.org/simple/wheels/pre-release
+openvino==2024.5.0rc2
+openvino-tokenizers==2024.5.0rc2
+openvino_genai==2024.5.0rc2
 auto-gptq>=0.5.1 # for gptq
 pillow
 torch
