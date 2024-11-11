@@ -21,7 +21,7 @@ def parser_text(path, n):
                 avg_2nd_tokens_latency = line.split(" ")[-2]
             elif "avg_2nd_token_throughput" in line:
                 avg_2nd_token_throughput = line.split(" ")[-2]
-            elif not get_text:
+            elif not get_text and line.strip() != "":
                 text = line
                 get_text = True
 
