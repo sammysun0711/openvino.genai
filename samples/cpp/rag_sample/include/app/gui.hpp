@@ -31,6 +31,7 @@ struct UIState {
     int active_device_index = 0;
     std::string model_path;
     int topk = 10;
+    bool debug = false;
     std::vector<std::string> results;
     bool should_load_results = false;
     std::vector<ImageData> result_images;

@@ -316,6 +316,14 @@ void App::RenderLeftPanel() {
     ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(5 / 7.0f, 0.6f, 0.6f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(5 / 7.0f, 0.7f, 0.7f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(5 / 7.0f, 0.8f, 0.8f));
+    if (ImGui::Button("Debug")) {
+        state.debug = true;
+    }
+
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(5 / 7.0f, 0.6f, 0.6f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(5 / 7.0f, 0.7f, 0.7f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(5 / 7.0f, 0.8f, 0.8f));
 
     if (ImGui::Button("Search")) {
         if (server_context != nullptr && is_image_embeddings_ready(*server_context) &&
@@ -323,7 +331,7 @@ void App::RenderLeftPanel() {
             worker.Request([this] {
                 state.results.clear();
                 std::vector<std::string> inputs = {state.input_image.path};
-                state.results = handle_db_retrieval_image(*server_context, inputs, state.topk);
+                state.results = handle_db_retrieval_image(*server_context, inputs, state.topk, state.debug);
                 state.should_load_results = true;
                 for (size_t i = 0; i < state.results.size(); i++) {
                     std::cout << state.results[i] << std::endl;

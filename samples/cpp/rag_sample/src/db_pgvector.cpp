@@ -25,6 +25,10 @@ void DBPgvector::db_setup(const std::string& db_connection_str) {
         // TODO: suppport more embedding model, 
         // 512 is only for BGE-small, 1024 is for BGE-large
         tx.exec0("CREATE TABLE documents (id bigserial PRIMARY KEY, content text, embedding vector(512))");
+        
+        // CREATE INDEX ON t USING hnsw (val vector_l2_ops);
+        tx.exec0("CREATE INDEX ON documents USING hnsw (embedding vector_l2_ops)");
+
         tx.commit();
         std::cout << "Create table document in PostgreSQL" << std::endl;
 
@@ -105,27 +109,40 @@ std::vector<std::string> DBPgvector::db_retrieval(size_t chunk_num,
 
 std::vector<std::string> DBPgvector::db_retrieval_only(std::vector<std::string> query,
                                                        std::vector<std::vector<float>> query_embedding,
-                                                       int topk) {
+                                                       int topk,
+                                                       bool DEBUG) {
     std::cout << "db_retrieval start and will get the top " << topk << " results: " << std::endl;
     std::vector<std::string> retrieval_res;
     try {
         pqxx::work tx{*pgconn};
         pgvector::Vector embeddings_vector(query_embedding[0]);
-
-        // the top 3 search, result without the query
-        pqxx::result res{
-            tx.exec_params("SELECT id, content, embedding FROM documents ORDER BY embedding <=> $1 LIMIT $2",
-                           embeddings_vector,
-                           topk)};
-
+        if (DEBUG) {
+            pqxx::result res{
+                tx.exec_params("EXPLAIN ANALYZE SELECT id, content, embedding FROM documents ORDER BY embedding <-> $1 LIMIT $2",
+                            embeddings_vector,
+                            topk)};
         std::cout << "===================================\n";
 
-        for (const pqxx::row& row : res) {
-            std::string chunks_str = row["content"].c_str();
-            std::cout << "ID: " << row[0] << ", parts of the chunks content: \n"
-                      << chunks_str.substr(0, 100) << " ..." << std::endl;
+            // 输出EXPLAIN ANALYZE的结果
+            for (const auto &row : res) {
+                // EXPLAIN ANALYZE的结果通常是一个文本描述，每行可能包含不同的信息
+                std::cout << row[0].as<std::string>() << std::endl;
+            }
+        } else {
+            pqxx::result res{
+                tx.exec_params("SELECT id, content, embedding FROM documents ORDER BY embedding <-> $1 LIMIT $2",
+                            embeddings_vector,
+                            topk)};
             std::cout << "===================================\n";
-            retrieval_res.push_back(row["content"].c_str());
+            // the topk search, result without the query
+
+            for (const pqxx::row& row : res) {
+                std::string chunks_str = row["content"].c_str();
+                std::cout << "ID: " << row[0] << ", parts of the chunks content: \n"
+                        << chunks_str.substr(0, 100) << " ..." << std::endl;
+                std::cout << "===================================\n";
+                retrieval_res.push_back(row["content"].c_str());
+            }
         }
         tx.commit();
         std::cout << "DBPgvector::db_retrieval SELECT successed\n";

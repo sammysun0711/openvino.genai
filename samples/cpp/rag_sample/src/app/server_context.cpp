@@ -24,13 +24,14 @@ void handle_image_embeddings_init(util::ServerContext& server_context_ref) {
 
 std::vector<std::string> handle_db_retrieval_image(util::ServerContext& server_context_ref,
                                                    std::vector<std::string> image_paths,
-                                                   int topk) {
+                                                   int topk,
+                                                   bool debug) {
     if (server_context_ref.db_state == State::IDLE) {
         server_context_ref.db_state = State::RUNNING;
         std::vector<std::vector<float>> embeddings_query =
             server_context_ref.image_embeddings_pointer->encode_images(image_paths);
         server_context_ref.retrieval_res =
-            server_context_ref.db_pgvector_pointer->db_retrieval_only(image_paths, embeddings_query, topk);
+            server_context_ref.db_pgvector_pointer->db_retrieval_only(image_paths, embeddings_query, topk, debug);
         server_context_ref.db_state = State::IDLE;
         std::cout << "HandleMaster::db_retrieval successed\n";
         return server_context_ref.retrieval_res;

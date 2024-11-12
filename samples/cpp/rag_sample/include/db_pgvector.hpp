@@ -27,7 +27,8 @@ public:
 
     std::vector<std::string> db_retrieval_only(std::vector<std::string> query,
                                                std::vector<std::vector<float>> query_embedding,
-                                               int topk = 3);
+                                               int topk = 3,
+                                               bool DEBUG = false);
 
 private:
     std::optional<pqxx::connection> pgconn;
