@@ -275,6 +275,8 @@ def run_text_generation_genai(input_text, num, model, tokenizer, args, iter_data
         batch_size=args['batch_size'],
         prompt_idx=prompt_index
     )
+
+    print("== Generating output: ", generated_text[0])
     if num > 0:
         prev_md5 = md5_list[num - 1][prompt_index]
         if result_md5_list != prev_md5:
