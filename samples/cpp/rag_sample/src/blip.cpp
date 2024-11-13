@@ -120,7 +120,7 @@ void BlipModel::init(std::string blip_model_path, std::string device) {
     std::string projection_model_path = (std::filesystem::path(blip_model_path) / "blip_vision_proj_model.xml").string();
     try {
         vision_model = core.compile_model(vision_model_path, device).create_infer_request();
-        std::cout << "Load blip vision model successed\n";
+        std::cout << "Load blip vision model successed on " <<  device << " \n";
         vision_projection_model = core.compile_model(projection_model_path, device).create_infer_request();
         std::cout << "Load blip vision projection model successed\n";
         std::cout << "Init blip models successed\n";

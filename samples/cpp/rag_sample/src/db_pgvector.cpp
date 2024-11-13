@@ -118,7 +118,7 @@ std::vector<std::string> DBPgvector::db_retrieval_only(std::vector<std::string> 
         pgvector::Vector embeddings_vector(query_embedding[0]);
         if (DEBUG) {
             pqxx::result res{
-                tx.exec_params("EXPLAIN ANALYZE SELECT id, content, embedding FROM documents ORDER BY embedding <-> $1 LIMIT $2",
+                tx.exec_params("EXPLAIN (ANALYZE, VERBOSE, BUFFERS) SELECT id, content, embedding FROM documents ORDER BY embedding <-> $1 LIMIT $2",
                             embeddings_vector,
                             topk)};
         std::cout << "===================================\n";
@@ -129,10 +129,14 @@ std::vector<std::string> DBPgvector::db_retrieval_only(std::vector<std::string> 
                 std::cout << row[0].as<std::string>() << std::endl;
             }
         } else {
+            std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
             pqxx::result res{
                 tx.exec_params("SELECT id, content, embedding FROM documents ORDER BY embedding <-> $1 LIMIT $2",
                             embeddings_vector,
                             topk)};
+            std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+            std::chrono::duration<double, std::milli> elapsed_time = end - start;
+            std::cout << "query time: " << elapsed_time.count() << " ms" << std::endl;
             std::cout << "===================================\n";
             // the topk search, result without the query
 
