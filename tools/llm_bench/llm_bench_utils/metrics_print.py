@@ -32,29 +32,35 @@ def print_metrics(
         output_str += 'Latency: {:.2f} ms/{}'.format(iter_data['latency'], latency_unit)
     if output_str != '':
         output_str = ' '.join([prefix, output_str])
-        log.info(output_str)
+        #log.info(output_str)
     if tms is not None:
         iter_data['first_token_latency'] = tms[0] * 1000 if len(tms) > 0 else -1
         iter_data['other_tokens_avg_latency'] = sum(tms[1:]) / (len(tms) - 1) * 1000 if len(tms) > 1 else -1
         first_token_latency = 'NA' if iter_data['first_token_latency'] == -1 else f"{iter_data['first_token_latency']:.2f} ms/{latency_unit}"
         other_token_latency = 'NA' if iter_data['other_tokens_avg_latency'] == -1 else f"{iter_data['other_tokens_avg_latency']:.2f} ms/{latency_unit}"
+        """
         log.info(
             f'{prefix} First token latency: {first_token_latency}, '
             f'other tokens latency: {other_token_latency}, len of tokens: {len(tms)} * {batch_size}',
         )
+        
         if len(tms) == 0:
             log.warning(f'{prefix} No hook data output for first token latency and other tokens latency')
+        """
     if tms_infer is not None:
         iter_data['first_token_infer_latency'] = tms_infer[0] * 1000 if len(tms_infer) > 0 else -1
         iter_data['other_tokens_infer_avg_latency'] = sum(tms_infer[1:]) / (len(tms_infer) - 1) * 1000 if len(tms_infer) > 1 else -1
         first_infer_latency = 'NA' if iter_data['first_token_infer_latency'] == -1 else f"{iter_data['first_token_infer_latency']:.2f} ms/infer"
         other_infer_latency = 'NA' if iter_data['other_tokens_infer_avg_latency'] == -1 else f"{iter_data['other_tokens_infer_avg_latency']:.2f} ms/infer"
+        """
         log.info(
             f'{prefix} First infer latency: {first_infer_latency}, '
             f'other infers latency: {other_infer_latency}, inference count: {len(tms_infer)}',
         )
+        
         if len(tms_infer) == 0:
             log.warning(f'{prefix} No hook data output for first infer latency and other infers latency')
+        """
     if stable_diffusion is not None:
         print_stable_diffusion_infer_latency(iter_str, iter_data, stable_diffusion, prompt_idx)
     if whisper is not None:
@@ -62,18 +68,16 @@ def print_metrics(
     output_str = ''
     if max_rss_mem != '' and max_rss_mem > -1:
         output_str += 'Max rss memory cost: {:.2f}MBytes, '.format(max_rss_mem)
-        with open("log.txt", "a") as file:
-            file.write('max_rss_mem: ' + str(max_rss_mem))
-            file.write('\r\n')
     if max_uss_mem != '' and max_uss_mem > -1:
         output_str += 'max uss memory cost: {:.2f}MBytes, '.format(max_uss_mem)
     if max_shared_mem != '' and max_shared_mem > -1:
         output_str += 'max shared memory cost: {:.2f}MBytes'.format(max_shared_mem)
     if output_str != '':
         output_str = ' '.join([prefix, output_str])
-        log.info(output_str)
+        #log.info(output_str)
     if iter_data['result_md5'] != '':
-        log.info(f"{prefix} Result MD5:{iter_data['result_md5']}")
+        #log.info(f"{prefix} Result MD5:{iter_data['result_md5']}")
+        pass
 
 
 def print_generated(iter_num, warm_up=False, generated=None, prompt_idx=-1):
@@ -173,6 +177,17 @@ def output_avg_statis_tokens(prompt_dict, prompt_idx_list, iter_data_list, batch
                 prompt_dict[p_idx] = '\n{} 1st step of unet latency: {}, ' \
                     '2nd steps of unet latency: {}, 2nd steps throughput: {}' \
                     .format(prefix, avg_1st_token_latency, avg_2nd_tokens_latency, avg_2nd_token_tput)
+
+            max_rss_mem_consumption = iter_data_list[-1]["max_rss_mem_consumption"]
+            
+            print(f"\n== Performance metrics from {index_num} times run:")
+
+            print('input_token_count: {}'.format(avg_input_size))
+            print('avg_1st_token_latency: {}'.format(avg_1st_token_latency))
+            print('avg_2nd_tokens_latency: {}'.format(avg_2nd_tokens_latency))
+            print('avg_2nd_token_throughput: {}'.format(avg_2nd_token_tput))
+            print("max_rss_mem_consumption: {:.2f} MB".format(max_rss_mem_consumption))
+            '''
             with open("log.txt", "a") as file:
                 # Append the list of strings to the file
                 file.write('input_token_count: ' + str(avg_input_size))
@@ -186,6 +201,7 @@ def output_avg_statis_tokens(prompt_dict, prompt_idx_list, iter_data_list, batch
 
                 file.write('avg_2nd_token_throughput: ' + str(avg_2nd_token_tput))
                 file.write('\r\n')
+            '''
 
 
 def print_average(iter_data_list, prompt_idx_list, batch_size, is_text_gen=False, loop_idx=-1):
@@ -203,11 +219,13 @@ def print_average(iter_data_list, prompt_idx_list, batch_size, is_text_gen=False
     if total_iters > 0:
         prompt_dict = {}
         output_avg_statis_tokens(prompt_dict, prompt_idx_list, iter_data_list, batch_size, is_text_gen, loop_idx)
-        log.info('<<< Warm-up iteration is excluded. >>>')
-        out_str = '[Total] Iterations: {}'.format(total_iters)
-        for prompt_key in prompt_dict:
-            out_str += prompt_dict[prompt_key]
-        log.info(out_str)
+
+        #log.info('<<< Warm-up iteration is excluded. >>>')
+        #out_str = '[Total] Iterations: {}'.format(total_iters)
+        #for prompt_key in prompt_dict:
+        #    out_str += prompt_dict[prompt_key]
+        #log.info(out_str)
+
 
 
 def print_whisper_infer_latency(iter_str, whisper, prompt_idx=-1):

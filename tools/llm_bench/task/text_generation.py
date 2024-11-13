@@ -21,7 +21,11 @@ import llm_bench_utils.parse_json_data as parse_json_data
 FW_UTILS = {'pt': llm_bench_utils.pt_utils, 'ov': llm_bench_utils.ov_utils}
 
 DEFAULT_OUTPUT_TOKEN_SIZE = 512
-
+def simple_streamer(subword):
+    print(subword, end='', flush=True)
+    # Return flag corresponds whether generation should be stopped.
+    # False means continue generation.
+    return False
 
 def run_text_generation(input_text, num, model, tokenizer, args, iter_data_list, md5_list,
                         prompt_index, bench_hook, model_precision, proc_id, mem_consumption):
@@ -195,14 +199,11 @@ def run_text_generation_genai(input_text, num, model, tokenizer, args, iter_data
             out_str += 'all max_output_token_size: {} * {}'.format(args['infer_count'], args['batch_size'])
         log.info(out_str)
     start = time.perf_counter()
-    generation_result = model.generate(input_text_list, max_new_tokens=max_gen_tokens, num_beams=args["num_beams"], do_sample=False)
+    #generation_result = model.generate(input_text_list, max_new_tokens=max_gen_tokens, num_beams=args["num_beams"], do_sample=False)
+    generation_result = model.generate(input_text_list, max_new_tokens=max_gen_tokens, num_beams=args["num_beams"], do_sample=False, streamer=simple_streamer)
     end = time.perf_counter()
+    print("\n")
     generated_text = generation_result.texts
-    with open("log.txt", "a") as file:
-    # Write the string to the file
-        file.write(generated_text[0])
-        file.write('\r\n')
-                
     perf_metrics = generation_result.perf_metrics
 
     if (args['mem_consumption'] == 1 and num == 0) or args['mem_consumption'] == 2:
@@ -459,6 +460,7 @@ def run_text_generation_benchmark(model_path, framework, device, args, num_iters
                 log.info(f"{prefix}[P{p_idx}] start: {iter_timestamp[num][p_idx]['start']}, end: {iter_timestamp[num][p_idx]['end']}")
 
     metrics_print.print_average(iter_data_list, prompt_idx_list, args['batch_size'], True)
+
     return iter_data_list, pretrain_time, iter_timestamp
 
 
