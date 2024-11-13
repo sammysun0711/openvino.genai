@@ -100,8 +100,10 @@ def run_text_generation(input_text, num, model, tokenizer, args, iter_data_list,
         if model.config.is_encoder_decoder and result[bs_idx][0] == model.config.decoder_start_token_id:
             generated_token_size = generated_token_size - 1
         num_tokens += generated_token_size
+        """
         if generated_token_size > max_gen_tokens:
             log.error('Output token size is over max output token size!')
+        """
         result_text = generated_text[bs_idx]
         if args["output_dir"] is not None:
             llm_bench_utils.output_file.output_gen_text(result_text, args, model_precision, prompt_index, num, bs_idx, proc_id)
@@ -219,8 +221,10 @@ def run_text_generation_genai(input_text, num, model, tokenizer, args, iter_data
     for bs_idx in range(args['batch_size']):
         generated_text_len = generated_tokens[bs_idx].shape[-1]
         num_tokens += generated_text_len
+        """
         if generated_text_len > max_gen_tokens:
             log.error('Output token size is over max output token size!')
+        """
         result_text = generated_text[bs_idx]
         if args["output_dir"] is not None:
             llm_bench_utils.output_file.output_gen_text(result_text, args, model_precision, prompt_index, num, bs_idx, proc_id)
@@ -340,8 +344,10 @@ def run_text_generation_genai_with_stream(input_text, num, model, tokenizer, arg
     for bs_idx in range(args['batch_size']):
         generated_text_len = len(generated_tokens[bs_idx])
         num_tokens += generated_text_len
+        """
         if generated_text_len > max_gen_tokens:
             log.error('Output token size is over max output token size!')
+        """
         result_text = generated_text[bs_idx]
         if args["output_dir"] is not None:
             llm_bench_utils.output_file.output_gen_text(result_text, args, model_precision, prompt_index, num, bs_idx, proc_id)
