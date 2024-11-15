@@ -38,12 +38,11 @@ def print_metrics(
         iter_data['other_tokens_avg_latency'] = sum(tms[1:]) / (len(tms) - 1) * 1000 if len(tms) > 1 else -1
         first_token_latency = 'NA' if iter_data['first_token_latency'] == -1 else f"{iter_data['first_token_latency']:.2f} ms/{latency_unit}"
         other_token_latency = 'NA' if iter_data['other_tokens_avg_latency'] == -1 else f"{iter_data['other_tokens_avg_latency']:.2f} ms/{latency_unit}"
-        """
         log.info(
             f'{prefix} First token latency: {first_token_latency}, '
             f'other tokens latency: {other_token_latency}, len of tokens: {len(tms)} * {batch_size}',
         )
-        
+        """ 
         if len(tms) == 0:
             log.warning(f'{prefix} No hook data output for first token latency and other tokens latency')
         """
@@ -52,12 +51,12 @@ def print_metrics(
         iter_data['other_tokens_infer_avg_latency'] = sum(tms_infer[1:]) / (len(tms_infer) - 1) * 1000 if len(tms_infer) > 1 else -1
         first_infer_latency = 'NA' if iter_data['first_token_infer_latency'] == -1 else f"{iter_data['first_token_infer_latency']:.2f} ms/infer"
         other_infer_latency = 'NA' if iter_data['other_tokens_infer_avg_latency'] == -1 else f"{iter_data['other_tokens_infer_avg_latency']:.2f} ms/infer"
-        """
+        
         log.info(
             f'{prefix} First infer latency: {first_infer_latency}, '
             f'other infers latency: {other_infer_latency}, inference count: {len(tms_infer)}',
         )
-        
+        """
         if len(tms_infer) == 0:
             log.warning(f'{prefix} No hook data output for first infer latency and other infers latency')
         """
@@ -74,7 +73,7 @@ def print_metrics(
         output_str += 'max shared memory cost: {:.2f}MBytes'.format(max_shared_mem)
     if output_str != '':
         output_str = ' '.join([prefix, output_str])
-        #log.info(output_str)
+        log.info(output_str)
     if iter_data['result_md5'] != '':
         #log.info(f"{prefix} Result MD5:{iter_data['result_md5']}")
         pass

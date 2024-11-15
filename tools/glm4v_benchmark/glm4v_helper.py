@@ -410,15 +410,13 @@ def is_empty(images_list: Optional[List[List[torch.Tensor]]]):
 class OvGLM4v(GenerationMixin):
     def __init__(self, model_dir, device, llm_times=[], image_embed_t=[], embed_token_t=[]):
         model_dir = Path(model_dir)
-        self.model = core.read_model(model_dir / "language_model.xml")
+        self.llm = core.compile_model(model_dir / "language_model.xml", device)
         self.image_embed = core.compile_model(model_dir / "image_embed.xml", device)
         self.embed_token = core.compile_model(model_dir / "embed_token.xml", device)
-        self.input_names = {key.get_any_name(): idx for idx, key in enumerate(self.model.inputs)}
-        self.output_names = {key.get_any_name(): idx for idx, key in enumerate(self.model.outputs)}
-        # compiled_model = core.compile_model(self.model, device, config={"INFERENCE_PRECISION_HINT": "fp16"})
-        compiled_model = core.compile_model(self.model, device)
+        self.input_names = {key.get_any_name(): idx for idx, key in enumerate(self.llm.inputs)}
+        self.output_names = {key.get_any_name(): idx for idx, key in enumerate(self.llm.outputs)}
 
-        self.request = compiled_model.create_infer_request()
+        self.request = self.llm.create_infer_request()
         self.config = AutoConfig.from_pretrained(model_dir, trust_remote_code=True)
         self.generation_config = GenerationConfig.from_model_config(self.config)
         self.main_input_name = "input_ids"
@@ -589,22 +587,9 @@ class OvGLM4v(GenerationMixin):
                                        return_dict=True, add_special_tokens=False)  # chat mode
         inputs = inputs.to("cpu")
 
-        #self.model_inputs = self.tokenizer(prompt, return_tensors="pt")
-        #self.model_inputs.pop("token_type_ids", None)
         streamer = TextIteratorStreamer(tokenizer,
                                         skip_prompt=True,
                                         skip_special_tokens=True)
-        """
-        generate_kwargs = dict(self.model_inputs,
-                               streamer=streamer,
-                               max_new_tokens=self.args.max_new_tokens,
-                               do_sample=self.args.do_sample,
-                               top_p=self.args.top_p,
-                               temperature=self.args.temperature,
-                               top_k=self.args.top_k,
-                               repetition_penalty=self.args.repetition_penalty,
-                               eos_token_id=self.tokenizer.eos_token_id)
-        """
         generate_kwargs["streamer"]=streamer
         stream_complete = Event()
 

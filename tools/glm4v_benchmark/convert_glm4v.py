@@ -11,17 +11,18 @@ def main():
     args = parser.parse_args()
     model_dir = args.model_dir
     use_int4 = args.use_int4
-
+    out_dir = ""
     if use_int4:
         compression_configuration = {
             "mode": nncf.CompressWeightsMode.INT4_SYM,
             "group_size": 128,
             "ratio": 1.0,
         }
+        out_dir = "glm4v-nano-v050-ov-int4"
     else:
         compression_configuration = None
-        
-    out_dir = "glm4v-nano-v050-ov"
+        out_dir = "glm4v-nano-v050-ov-fp16"
+
     convert_glm4v_model(model_dir, out_dir, compression_configuration)
 
 if __name__ == '__main__':
