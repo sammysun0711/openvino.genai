@@ -39,3 +39,5 @@ CMakeUserPresets.json
 __pycache__
 .py-build-cmake_cache
 *.egg-info
+
+glm4v-nano-v050-ov
