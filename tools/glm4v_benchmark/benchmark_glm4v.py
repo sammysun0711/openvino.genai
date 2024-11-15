@@ -15,7 +15,7 @@ numpy.random.seed(seed)
 
 parser = argparse.ArgumentParser('glm4v ov convert tool', add_help=True, formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument('--model_dir', type=str, required=True, help='Directory where the model is stored')
-parser.add_argument('--image_path', type=str, required=True, default="bird.png", help='Image path')
+parser.add_argument('--image_path', type=str, default="bird.png", help='Image path')
 parser.add_argument('--image_size', type=int, default=672, help='Image size, default is 672 from default config of glm4v')
 parser.add_argument('--device', type=str, default="CPU", help='Device to run inference on, default is "CPU"')
 parser.add_argument('--prompt', type=str, default='描述这张图片', help='Prompt, default is "描述这张图片"')
