@@ -95,7 +95,7 @@ for i in range(NC):
         first_token_t.append(llm_times[0])
         avg_token = sum(llm_times[1:]) / (len(llm_times) - 1)
         avg_token_t.append(avg_token)
-        print(f"LLM Model First token latency: {llm_times[0]:.2f} ms, Output len: {len(llm_times)}, Average token 2nd+ latency: {avg_token:.2f} ms")
+        print(f"LLM Model First token latency: {llm_times[0]:.2f} ms, Output len: {len(llm_times)}, Average 2nd+ token latency: {avg_token:.2f} ms")
         avg_i = sum(image_embed_t[1:]) / (len(image_embed_t)-1)
         print(f"image embedding inference latency: {avg_i:.2f} ms")
         avg_emb_tok = sum(embed_token_t) / len(embed_token_t)
