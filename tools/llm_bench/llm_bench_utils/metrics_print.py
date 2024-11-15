@@ -51,12 +51,11 @@ def print_metrics(
         iter_data['other_tokens_infer_avg_latency'] = sum(tms_infer[1:]) / (len(tms_infer) - 1) * 1000 if len(tms_infer) > 1 else -1
         first_infer_latency = 'NA' if iter_data['first_token_infer_latency'] == -1 else f"{iter_data['first_token_infer_latency']:.2f} ms/infer"
         other_infer_latency = 'NA' if iter_data['other_tokens_infer_avg_latency'] == -1 else f"{iter_data['other_tokens_infer_avg_latency']:.2f} ms/infer"
-        
+        """
         log.info(
             f'{prefix} First infer latency: {first_infer_latency}, '
             f'other infers latency: {other_infer_latency}, inference count: {len(tms_infer)}',
         )
-        """
         if len(tms_infer) == 0:
             log.warning(f'{prefix} No hook data output for first infer latency and other infers latency')
         """

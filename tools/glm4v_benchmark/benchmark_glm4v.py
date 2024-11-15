@@ -80,6 +80,7 @@ for i in range(NC):
     """
 
     mem_consumption.start_collect_memory_consumption()
+    print("== Genereate output: ")
     start_time = time.time()
     with torch.no_grad():
         for text in model.chat_stream(image, query, tokenizer, gen_kwargs):
@@ -106,7 +107,7 @@ for i in range(NC):
 
 print("--------------------------------------------")
 print("")
-print(f"{NC} Generation finished:")
+print(f"== {NC} Generation finished:")
 avg_i = sum(image_embed_t[1:]) / (len(image_embed_t)-1)
 print(f"Average image embedding latency: {avg_i:.2f} ms")
 avg_emb_tok_avg = sum(avg_token_embed_t) / len(avg_token_embed_t)
