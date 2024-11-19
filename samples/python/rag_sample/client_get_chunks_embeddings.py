@@ -17,6 +17,7 @@ import re
 import json
 import http.client
 import argparse
+import time
 
 class ChineseTextSplitter(CharacterTextSplitter):
     def __init__(self, pdf: bool = False, **kwargs):
@@ -89,16 +90,22 @@ def get_chunks(docs, spliter_name, chunk_size, chunk_overlap):
       chunk_size:  size of a single sentence chunk
       chunk_overlap: overlap size between 2 chunks
     """
+    
+    start_time_all = time.time() 
+    start_time_load = time.time()
+    
     documents = []
     for doc in docs:
         documents.extend(load_single_document(doc))
 
+    end_time_load = time.time()
+    
     text_splitter = TEXT_SPLITERS[spliter_name](
         chunk_size=chunk_size, chunk_overlap=chunk_overlap
     )
-
+    start_time_split = time.time()
     texts = text_splitter.split_documents(documents)
-
+    end_time_split = time.time()  
     print("loader and spliter finished, len(chunks) is: ", len(texts))
 
     page_content_list = []
@@ -111,6 +118,16 @@ def get_chunks(docs, spliter_name, chunk_size, chunk_overlap):
 
     chunks_dict = {"data": page_content_list}  # Assuming sending chunks as JSON data
     json_data = json.dumps(chunks_dict)
+    
+    end_time_all = time.time()
+    load_time_used = end_time_load - start_time_load
+    print(f"Time used for loading documents: {load_time_used} seconds")
+    split_time_used = end_time_split - start_time_split
+    print(f"Time used for splitting documents: {split_time_used} seconds")
+
+    all_time_used = end_time_all - start_time_all
+    print(f"Total time used for the whole function: {all_time_used} seconds")
+
     return json_data
 
 
