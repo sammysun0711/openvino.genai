@@ -408,7 +408,7 @@ def is_empty(images_list: Optional[List[List[torch.Tensor]]]):
     return True
 
 class OvGLM4v(GenerationMixin):
-    def __init__(self, model_dir, device, llm_times=[], image_embed_t=[], embed_token_t=[]):
+    def __init__(self, model_dir, device, llm_times=[], input_token_length=[]):
         model_dir = Path(model_dir)
         self.llm = core.compile_model(model_dir / "language_model.xml", device)
         self.image_embed = core.compile_model(model_dir / "image_embed.xml", device)
@@ -428,9 +428,8 @@ class OvGLM4v(GenerationMixin):
         self.hd_transform_order = "glb_sub"
 
         self.llm_times = llm_times
-        self.image_embed_t = image_embed_t
-        self.embed_token_t = embed_token_t
-        
+        self.input_token_length = input_token_length
+
     def can_generate(self):
         """Returns True to validate the check that the model using `GenerationMixin.generate()` can indeed generate."""
         return True
@@ -467,12 +466,12 @@ class OvGLM4v(GenerationMixin):
     ) -> Union[Tuple, BaseModelOutputWithPast]:
         """take care of image_encode, position_ids and (attention_mask = None is fine)"""
         # generate mode with past_key_values. the image features are already mapped
+        start = time.perf_counter()
         if past_key_values is None:
             # not allow for inputs_embeds, because we want to process image feature
             assert input_ids is not None and inputs_embeds is None, f"{input_ids} {inputs_embeds}"
             self.request.reset_state()
             self.llm_times.clear()
-            self.embed_token_t.clear()
 
             self.next_beam_idx = np.arange(input_ids.shape[0], dtype=int)
             self._past_length = 0
@@ -481,15 +480,9 @@ class OvGLM4v(GenerationMixin):
                 patch_size: int = self.config.vision_config['patch_size']
                 num_patches = (image_size // patch_size // 2) ** 2
                 assert len(input_ids) == len(images), f"{len(input_ids)} {len(images)}"
-
-                start = time.perf_counter()
                 inputs_embeds = torch.from_numpy(self.embed_token(input_ids)[0])
-                self.embed_token_t.append((time.perf_counter() - start)*1000)
-                
                 images = images.to(dtype=inputs_embeds.dtype)
-                start = time.perf_counter()
                 images_features = torch.from_numpy(self.image_embed(images)[0])
-                self.image_embed_t.append((time.perf_counter() - start)*1000)
                 if position_ids is None:
                     position_ids = self.get_position_ids(input_ids, device=inputs_embeds.device)
                 new_input_embeds, new_position_ids = [], []
@@ -504,11 +497,10 @@ class OvGLM4v(GenerationMixin):
                          inputs_embeds[i, eoi_token_pos + 1:])))
                     new_position_ids.append(torch.arange(new_input_embeds[-1].shape[0]))
                 inputs_embeds = torch.stack(new_input_embeds, dim=0)
+                self.input_token_length.append(inputs_embeds.shape[1])
                 position_ids = torch.stack(new_position_ids, dim=0)
         if inputs_embeds is None:
-            start = time.perf_counter()
             inputs_embeds = self.embed_token(input_ids)[0]
-            self.embed_token_t.append((time.perf_counter() - start)*1000)
         inputs = {}
         inputs["inputs_embeds"] = inputs_embeds
         inputs["attention_mask"] = attention_mask
@@ -516,7 +508,6 @@ class OvGLM4v(GenerationMixin):
         if "beam_idx" in self.input_names:
             inputs["beam_idx"] = self.next_beam_idx if self.next_beam_idx is not None else np.arange(inputs_embeds.shape[0], dtype=int)
 
-        start = time.perf_counter()
         self.request.start_async(inputs, share_inputs=True)
         self.request.wait()
         self.llm_times.append((time.perf_counter() - start)*1000)

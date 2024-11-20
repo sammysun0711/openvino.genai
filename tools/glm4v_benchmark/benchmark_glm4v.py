@@ -39,13 +39,12 @@ image = Image.open(image_path).convert('RGB')
 image = image.resize((image_size, image_size))
 
 llm_times=[]
-image_embed_t = []
-embed_token_t = []
+input_token_length = []
 streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
 
 mem_consumption = MemConsumption()
 mem_consumption.start_collect_mem_consumption_thread()        
-model = OvGLM4v(model_dir, device, llm_times=llm_times, image_embed_t=image_embed_t, embed_token_t=embed_token_t)
+model = OvGLM4v(model_dir, device, llm_times=llm_times, input_token_length=input_token_length)
 
 gen_kwargs = {"max_new_tokens": 128, 
               "do_sample": True, 
@@ -66,7 +65,6 @@ print("\n-------------------------warmup finished-------------------------")
 
 first_token_t = []
 avg_token_t = []
-avg_token_embed_t=[]
 start_time = time.time()
 NC = num_count
 max_rss_mem, max_shared_mem, max_uss_mem = None, None, None
@@ -90,17 +88,12 @@ for i in range(NC):
     mem_consumption.end_collect_momory_consumption()
 
     print("\n--------------------------------------------")
-    # print(f"image_embed Model infer: {image_embed_t[i+1]:.2f} ms")
     if len(llm_times) > 1:
         first_token_t.append(llm_times[0])
         avg_token = sum(llm_times[1:]) / (len(llm_times) - 1)
         avg_token_t.append(avg_token)
-        print(f"LLM Model First token latency: {llm_times[0]:.2f} ms, Output len: {len(llm_times)}, Average 2nd+ token latency: {avg_token:.2f} ms")
-        avg_i = sum(image_embed_t[1:]) / (len(image_embed_t)-1)
-        print(f"image embedding inference latency: {avg_i:.2f} ms")
-        avg_emb_tok = sum(embed_token_t) / len(embed_token_t)
-        avg_token_embed_t.append(avg_emb_tok)
-        print(f"token embedding inference latency: {avg_emb_tok:.2f} ms")
+        print(f"First input token size: ", input_token_length[-1])
+        print(f"VLM Model First token latency: {llm_times[0]:.2f} ms, Output len: {len(llm_times)}, Average 2nd+ token latency: {avg_token:.2f} ms")
         max_rss_mem, max_shared_mem, max_uss_mem =  mem_consumption.get_max_memory_consumption()
         print("max_rss_mem: {:.2f} MB".format(max_rss_mem))
         mem_consumption.clear_max_memory_consumption()
@@ -108,16 +101,13 @@ for i in range(NC):
 print("--------------------------------------------")
 print("")
 print(f"== Performance metrics from {NC} times run: ")
-avg_i = sum(image_embed_t[1:]) / (len(image_embed_t)-1)
-print(f"Average image embedding latency: {avg_i:.2f} ms")
-avg_emb_tok_avg = sum(avg_token_embed_t) / len(avg_token_embed_t)
-print(f"Average token embedding latency: {avg_emb_tok_avg:.2f} ms")
+print(f"First input token size: ", input_token_length[0])
 avg_token_ft = sum(first_token_t) / len(first_token_t)
-print(f"Average LLM first token latency: {avg_token_ft:.2f} ms")
+print(f"Average VLM first token latency: {avg_token_ft:.2f} ms")
 avg_token_av = sum(avg_token_t) / len(avg_token_t)
-print(f"Average LLM 2nd+ token latency: {avg_token_av:.2f} ms")
+print(f"Average VLM 2nd+ token latency: {avg_token_av:.2f} ms")
 avg_token_rate = 1000 / avg_token_av
-print(f"Average LLM token rate: {avg_token_rate:.2f} t/s")
+print(f"Average VLM token rate: {avg_token_rate:.2f} t/s")
 print("Max RSS Memory Usage: {:.2f} MB".format(max_rss_mem))
 print(f'Average E2E pipeline inference time of {NC} iteration: {sum(pipeline_latency)/NC:.2f} s')
 print("")
