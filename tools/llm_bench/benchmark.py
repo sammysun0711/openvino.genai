@@ -64,6 +64,13 @@ def get_argprser():
         'if the value is greater than 0, the average numbers exclude the first(0th) iteration,\n'
         'if the value equals 0 (default), execute the warm-up iteration(0th iteration).',
     )
+    parser.add_argument(
+        '-tl',
+        '--tokens_len',
+        default=1,
+        type=int,
+        help='The length of the number of tokens output each time in streaming output.',
+    )
     parser.add_argument('-i', '--images', default=None, help='test images for vision tasks. Can be directory or path to single image')
     parser.add_argument('-s', '--seed', type=int, default=42, required=False, help='specific random seed to generate fix result. Default 42.')
     parser.add_argument(
@@ -163,9 +170,9 @@ def main():
     logging_kwargs = {"encoding": "utf-8"} if sys.version_info[1] > 8 else {}
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=os.environ.get("LOGLEVEL", log.INFO), stream=sys.stdout, **logging_kwargs)
     args = get_argprser()
-    with open("log.txt", "a") as file:
-        file.write('output_token_count: ' + str(args.infer_count))
-        file.write('\r\n')
+    # with open("log.txt", "a") as file:
+    #     file.write('output_token_count: ' + str(args.infer_count))
+    #     file.write('\r\n')
     model_path, framework, model_args, model_name = llm_bench_utils.model_utils.analyze_args(args)
 
     # Set the device for running OpenVINO backend for torch.compile()
@@ -203,7 +210,7 @@ def main():
         mem_consumption.start_collect_mem_consumption_thread()
     try:
         iter_data_list, pretrain_time, iter_timestamp = CASE_TO_BENCH[model_args['use_case']](
-            model_path, framework, args.device, model_args, args.num_iters, mem_consumption)
+            model_path, framework, args.device, model_args, args.num_iters, args.tokens_len, mem_consumption)
         if args.report is not None or args.report_json is not None:
             model_precision = ''
             if framework == 'ov':
