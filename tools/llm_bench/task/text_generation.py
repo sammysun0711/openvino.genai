@@ -17,6 +17,7 @@ import llm_bench_utils.output_json
 import llm_bench_utils.output_file
 import llm_bench_utils.gen_output_data as gen_output_data
 import llm_bench_utils.parse_json_data as parse_json_data
+import threading, queue
 
 FW_UTILS = {'pt': llm_bench_utils.pt_utils, 'ov': llm_bench_utils.ov_utils}
 
@@ -27,8 +28,139 @@ def simple_streamer(subword):
     # False means continue generation.
     return False
 
+# class StreamerBase:
+#     """
+    
+#         Base class for streamers. In order to use inherit from from this class and implement put, and methods.
+#     """
+#     def __init__(self) -> None:
+#         ...
+#     def end(self) -> None:
+#         """
+#         End is called at the end of generation. It can be used to flush cache if your own streamer has one
+#         """
+#     def put(self, token: int) -> bool:
+#         """
+#         Put is called every time new token is decoded. Returns a bool flag to indicate whether generation should be stopped, if return true generation stops
+#         """
+import openvino_genai
+class IterableStreamer(openvino_genai.StreamerBase):
+    """
+    A custom streamer class for handling token streaming and detokenization with buffering.
+    
+    Attributes:
+        tokenizer (Tokenizer): The tokenizer used for encoding and decoding tokens.
+        tokens_cache (list): A buffer to accumulate tokens for detokenization.
+        text_queue (Queue): A synchronized queue for storing decoded text chunks.
+        print_len (int): The length of the printed text to manage incremental decoding.
+    """
+
+    def __init__(self, tokenizer, tokens_len = 1):
+        """
+        Initializes the IterableStreamer with the given tokenizer.
+        
+        Args:
+            tokenizer (Tokenizer): The tokenizer to use for encoding and decoding tokens.
+        """
+        super().__init__()
+        self.tokenizer = tokenizer
+        self.tokens_cache = []
+        self.text_queue = queue.Queue()
+        self.print_len = 0
+        self.tokens_len = tokens_len
+
+    def __iter__(self):
+        """
+        Returns the iterator object itself.
+        """
+        return self
+
+    def __next__(self):
+        """
+        Returns the next value from the text queue.
+        
+        Returns:
+            str: The next decoded text chunk.
+        
+        Raises:
+            StopIteration: If there are no more elements in the queue.
+        """
+        value = self.text_queue.get()  # get() will be blocked until a token is available.
+        if value is None:
+            raise StopIteration
+        return value
+
+    def get_stop_flag(self):
+        """
+        Checks whether the generation process should be stopped.
+        
+        Returns:
+            bool: Always returns False in this implementation.
+        """
+        return False
+
+    def put_word(self, word: str):
+        """
+        Puts a word into the text queue.
+        
+        Args:
+            word (str): The word to put into the queue.
+        """
+        self.text_queue.put(word)
+
+    def put(self, token_id: int) -> bool:
+        """
+        Processes a token and manages the decoding buffer. Adds decoded text to the queue.
+        
+        Args:
+            token_id (int): The token_id to process.
+        
+        Returns:
+            bool: True if generation should be stopped, False otherwise.
+        """        
+        self.tokens_cache.append(token_id)
+        if len(self.tokens_cache) % self.tokens_len == 0:
+            text = self.tokenizer.decode(self.tokens_cache)
+
+            word = ''
+            if len(text) > self.print_len and '\n' == text[-1]:
+                # Flush the cache after the new line symbol.
+                word = text[self.print_len:]            
+                self.tokens_cache = []
+                self.print_len = 0
+            elif len(text) >= 3 and text[-3:] == chr(65533):
+                # Don't print incomplete text.
+                pass
+            elif len(text) > self.print_len:
+                # It is possible to have a shorter text after adding new token.
+                # Print to output only if text lengh is increaesed.
+                word = text[self.print_len:]
+                self.print_len = len(text)
+            self.put_word(word)        
+
+            if self.get_stop_flag():
+                # When generation is stopped from streamer then end is not called, need to call it here manually.
+                self.end()
+                return True  # True means stop  generation
+            else:
+                return False  # False means continue generation
+        else:
+            return False
+
+    def end(self):
+        """
+        Flushes residual tokens from the buffer and puts a None value in the queue to signal the end.
+        """
+        text = self.tokenizer.decode(self.tokens_cache)
+        if len(text) > self.print_len:
+            word = text[self.print_len:]
+            self.put_word(word)
+            self.tokens_cache = []
+            self.print_len = 0
+        self.put_word(None)
+
 def run_text_generation(input_text, num, model, tokenizer, args, iter_data_list, md5_list,
-                        prompt_index, bench_hook, model_precision, proc_id, mem_consumption):
+                        prompt_index, bench_hook, model_precision, proc_id, mem_consumption, tokens_len):
     set_seed(args['seed'])
     input_text_list = [input_text] * args['batch_size']
     if args["output_dir"] is not None and num == 0:
@@ -178,7 +310,7 @@ def run_text_generation(input_text, num, model, tokenizer, args, iter_data_list,
 
 
 def run_text_generation_genai(input_text, num, model, tokenizer, args, iter_data_list, md5_list, prompt_index,
-                              streamer, model_precision, proc_id, mem_consumption):
+                              streamer, model_precision, proc_id, mem_consumption, tokens_len):
     set_seed(args['seed'])
     input_text_list = [input_text] * args['batch_size']
     if args["output_dir"] is not None and num == 0:
@@ -200,9 +332,20 @@ def run_text_generation_genai(input_text, num, model, tokenizer, args, iter_data
         if args['infer_count'] is not None:
             out_str += 'all max_output_token_size: {} * {}'.format(args['infer_count'], args['batch_size'])
         log.info(out_str)
+
+    text_print_streamer = IterableStreamer(model.get_tokenizer(), tokens_len)
+    def token_printer():
+        # Getting next elements from iterable will be blocked until a new token is available.
+        for word in text_print_streamer:
+            print(word, end='', flush=True)
+    printer_thread = threading.Thread(target=token_printer, daemon=True)
+    printer_thread.start()
+
     start = time.perf_counter()
     #generation_result = model.generate(input_text_list, max_new_tokens=max_gen_tokens, num_beams=args["num_beams"], do_sample=False)
-    generation_result = model.generate(input_text_list, max_new_tokens=max_gen_tokens, num_beams=args["num_beams"], do_sample=False, streamer=simple_streamer)
+    # generation_result = model.generate(input_text_list, max_new_tokens=max_gen_tokens, num_beams=args["num_beams"], do_sample=False, streamer=simple_streamer)
+    generation_result = model.generate(input_text_list, max_new_tokens=max_gen_tokens, num_beams=args["num_beams"], do_sample=False, streamer=text_print_streamer)
+    printer_thread.join()
     end = time.perf_counter()
     print("\n")
     generated_text = generation_result.texts
@@ -300,7 +443,7 @@ def run_text_generation_genai(input_text, num, model, tokenizer, args, iter_data
 
 
 def run_text_generation_genai_with_stream(input_text, num, model, tokenizer, args, iter_data_list, md5_list,
-                                          prompt_index, streamer, model_precision, proc_id, mem_consumption):
+                                          prompt_index, streamer, model_precision, proc_id, mem_consumption, tokens_len):
     set_seed(args['seed'])
     input_text_list = [input_text] * args['batch_size']
     if args["output_dir"] is not None and num == 0:
@@ -411,7 +554,7 @@ def run_text_generation_genai_with_stream(input_text, num, model, tokenizer, arg
     streamer.reset()
 
 
-def run_text_generation_benchmark(model_path, framework, device, args, num_iters, mem_consumption):
+def run_text_generation_benchmark(model_path, framework, device, args, num_iters, tokens_len, mem_consumption):
     model, tokenizer, pretrain_time, bench_hook, use_genai = FW_UTILS[framework].create_text_gen_model(model_path, device, **args)
     model_precision = model_utils.get_model_precision(model_path.parts)
     iter_data_list = []
@@ -450,7 +593,7 @@ def run_text_generation_benchmark(model_path, framework, device, args, num_iters
                     log.info(f'[warm-up][P{p_idx}] Input text: {input_text}')
                 iter_timestamp[num][p_idx]['start'] = datetime.datetime.now().isoformat()
                 text_gen_fn(input_text, num, model, tokenizer, args, iter_data_list, md5_list,
-                            p_idx, bench_hook, model_precision, proc_id, mem_consumption)
+                            p_idx, bench_hook, model_precision, proc_id, mem_consumption, tokens_len)
                 iter_timestamp[num][p_idx]['end'] = datetime.datetime.now().isoformat()
                 prefix = '[warm-up]' if num == 0 else '[{}]'.format(num)
                 log.info(f"{prefix}[P{p_idx}] start: {iter_timestamp[num][p_idx]['start']}, end: {iter_timestamp[num][p_idx]['end']}")
