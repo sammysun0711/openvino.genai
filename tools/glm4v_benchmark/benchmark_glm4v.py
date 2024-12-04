@@ -51,6 +51,7 @@ gen_kwargs = {"max_new_tokens": 128,
               "top_k": 50,
               "top_p": 0.95, 
               "eos_token_id": [ 59246,59253,59255]}
+tokens_len = 10
 
 """
 with torch.no_grad():
@@ -59,8 +60,9 @@ with torch.no_grad():
     print(tokenizer.decode(outputs[0]))
 """
 with torch.no_grad():
-    for text in model.chat_stream(image, query, tokenizer, gen_kwargs):
-        print(text, end='', flush=True)
+    # for text in model.chat_stream(image, query, tokenizer, tokens_len, gen_kwargs):
+    #     print(text, end='', flush=True)
+    model.chat_stream(image, query, tokenizer, tokens_len, gen_kwargs)
 print("\n-------------------------warmup finished-------------------------")
 
 first_token_t = []
@@ -81,8 +83,9 @@ for i in range(NC):
     print("== Genereate output: ")
     start_time = time.time()
     with torch.no_grad():
-        for text in model.chat_stream(image, query, tokenizer, gen_kwargs):
-            print(text, end='', flush=True)
+        # for text in model.chat_stream(image, query, tokenizer, tokens_len, gen_kwargs):
+        #     print(text, end='', flush=True)
+        model.chat_stream(image, query, tokenizer, tokens_len, gen_kwargs)
     end_time = time.time()
     pipeline_latency.append((end_time - start_time))
     mem_consumption.end_collect_momory_consumption()
