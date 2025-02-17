@@ -195,6 +195,7 @@ ov::genai::LLMPipeline::LLMPipeline(
     std::cout << "--------- Init LLMPipeline ---------\n";
     auto [properties, attention_backend] = extract_attention_backend(user_properties);
 
+    // attention_backend = SDPA_BACKEND;
     std::cout << "attention_backend: " << attention_backend << "\n";
     // If CB is invoked explicitly, create CB adapter as is and re-throw in case if internal issues
     if (explicitly_requires_paged_attention(properties)) {
