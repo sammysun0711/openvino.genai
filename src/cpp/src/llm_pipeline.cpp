@@ -192,11 +192,17 @@ ov::genai::LLMPipeline::LLMPipeline(
     const ov::AnyMap& user_properties) {
     auto start_time = std::chrono::steady_clock::now();
 
+    std::cout << "--------- Init LLMPipeline ---------\n";
     auto [properties, attention_backend] = extract_attention_backend(user_properties);
 
+    std::cout << "attention_backend: " << attention_backend << "\n";
     // If CB is invoked explicitly, create CB adapter as is and re-throw in case if internal issues
     if (explicitly_requires_paged_attention(properties)) {
+        std::cout << "--------- Speculative Decoding Init LLMPipeline ---------\n";
+        std::cout << "============== explicitly_requires_paged_attention =================\n";
+        std::cout << "============== extract scheduler config  =================\n";
         auto [device_properties, scheduler_config] = extract_scheduler_config(properties, get_latency_oriented_scheduler_config());
+        std::cout << "============== Init continous batching  =================\n";
         m_pimpl = std::make_unique<ContinuousBatchingAdapter>(models_path, scheduler_config, device, device_properties);
     }
 
@@ -218,6 +224,7 @@ ov::genai::LLMPipeline::LLMPipeline(
     }
 
     if (m_pimpl == nullptr) {
+        std::cout << "--------- Init Greedy Serach LLMPipeline ---------\n";
         m_pimpl = std::make_unique<StatefulLLMPipeline>(models_path, device, properties);
     }
 

@@ -148,6 +148,7 @@ void ContinuousBatchingPipeline::SpeculativeDecodingImpl::step() {
 
     // generate candidates by draft model
     ManualTimer draft_timer("speculative_decoding: draft_model: multistep()");
+    std::cout << "***** draft pipeline multi step *****\n";
     draft_timer.start();
     m_draft_pipeline->multistep();
     draft_timer.end();
@@ -164,6 +165,7 @@ void ContinuousBatchingPipeline::SpeculativeDecodingImpl::step() {
     }
 
     ManualTimer main_timer("speculative_decoding: main_model: step()");
+    std::cout << "***** main pipeline step *****\n";
     main_timer.start();
     m_main_pipeline->step();
     main_timer.end();
@@ -196,6 +198,7 @@ void ContinuousBatchingPipeline::SpeculativeDecodingImpl::step() {
 
     // update perf metrics
     const auto num_generated_tokens = m_main_pipeline->get_processed_tokens_per_iteration();
+    std::cout << "------ num_generated_tokens: " << num_generated_tokens << "\n";
     if (num_generated_tokens > 0) {
         auto infer_duration = step_timer.get_duration_microsec();
     
@@ -210,6 +213,7 @@ void ContinuousBatchingPipeline::SpeculativeDecodingImpl::step() {
         m_sd_metrics.print(true);
         m_sd_metrics.clean_up();
     }
+    step_timer.end();
 }
 
 std::vector<EncodedGenerationResult>
