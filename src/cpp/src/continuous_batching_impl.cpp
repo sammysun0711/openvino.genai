@@ -336,7 +336,7 @@ void ContinuousBatchingPipeline::ContinuousBatchingImpl::step() {
         }
     }
 
-    std::cout << "m_requests.size()： " << m_requests.size() << "\n";
+    //std::cout << "m_requests.size()： " << m_requests.size() << "\n";
     // if no tokens were scheduled, we are out of memory => free all requests and return
     if (scheduler_output.m_total_num_scheduled_tokens == 0) {
         for (size_t i = 0; i < m_requests.size(); ++i) {
