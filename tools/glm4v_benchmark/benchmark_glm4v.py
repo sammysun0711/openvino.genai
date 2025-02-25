@@ -19,7 +19,7 @@ numpy.random.seed(seed)
 parser = argparse.ArgumentParser('glm4v ov convert tool', add_help=True, formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument('--model_dir', type=str, required=True, help='Directory where the model is stored')
 parser.add_argument('--image_path', type=str, default="bird.png", help='Image path')
-parser.add_argument('--image_size', type=int, default=672, required=False, help='Image size, default is 672 from default config of glm4v')
+parser.add_argument('--image_size', type=int, default=1120, required=False, help='Image size, default is 672 from default config of glm4v')
 parser.add_argument('--device', type=str, default="GPU", required=True, help='Device to run inference on, default is "CPU"')
 parser.add_argument('--prompt', type=str, default='描述这张图片', help='Prompt, default is "描述这张图片"')
 parser.add_argument('--num_count', type=int, default=5, help='Number of infers, default is 5')
@@ -42,17 +42,19 @@ image = image.resize((image_size, image_size))
 
 llm_times=[]
 input_token_length = []
-streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
+#streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
 
 mem_consumption = MemConsumption()
 mem_consumption.start_collect_mem_consumption_thread()        
 model = OvGLM4v(model_dir, device, llm_times=llm_times, input_token_length=input_token_length)
 
-gen_kwargs = {"max_new_tokens": 128, 
+gen_kwargs = {"max_new_tokens": 256,
               "do_sample": True, 
               "top_k": 50,
-              "top_p": 0.95, 
-              "eos_token_id": [ 59246,59253,59255]}
+              "top_p": 0.95,
+              "eos_token_id": [ 151329, 151336, 151338, 151339, 151340],
+              "repetition_penalty": 1.1}
+
 """
 with torch.no_grad():
     outputs = model.generate(**inputs, **gen_kwargs)

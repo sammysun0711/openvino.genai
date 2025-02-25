@@ -322,16 +322,17 @@ def convert_glm4v_model(model_dir, output_dir, quantization_config):
         print("✅ Input embedding model successfully converted")
 
     vision_embed_tokens = model.transformer.vision
+    
     if not image_embed_path.exists():
         print("⌛ Convert Image embedding model")
         # vision_embed_tokens.forward = vision_embed_tokens.vit
-        ov_model = ov.convert_model(vision_embed_tokens, example_input=torch.ones([1, 3, 672, 672]))
+        ov_model = ov.convert_model(vision_embed_tokens, example_input=torch.ones([1, 3, 1120, 1120]))
         ov.save_model(ov_model, image_embed_path)
         del ov_model
         cleanup_torchscript_cache()
         gc.collect()
         print("✅ Image embedding model successfully converted")
-
+    
     if not lang_model_path.exists():
         print("⌛ Convert Language model")
         
@@ -346,14 +347,14 @@ def convert_glm4v_model(model_dir, output_dir, quantization_config):
         
         
         input_ids = torch.zeros([2, 2], dtype=torch.int64)
-        inputs_embeds = torch.zeros([2, 2,2048], dtype=torch.float32)
+        inputs_embeds = torch.zeros([2, 2, 4096], dtype=torch.float32)
         
         
         pkv = model.transformer(
             input_ids=input_ids,
             attention_mask=torch.ones((2, 2), dtype=torch.int64),
         )[1]
-        
+
         model.transformer._orig_forward = model.transformer.forward
         model.transformer.forward = types.MethodType(_chatglm_transformer_forward, model.transformer)
         for block in model.transformer.encoder.layers:
@@ -699,9 +700,9 @@ class OvGLM4v(GenerationMixin):
         #prompt=text
         inputs = tokenizer.apply_chat_template([{"role": "user", "image": image, "content": query}],
                                        add_generation_prompt=True, tokenize=True, return_tensors="pt",
-                                       return_dict=True, add_special_tokens=False)  # chat mode
+                                       return_dict=True)  # chat mode
         inputs = inputs.to("cpu")
-        self.generate(**inputs, **generate_kwargs, streamer=ChunkStreamer(tokenizer, tokens_len=tokens_len))
+        self.generate(**inputs, **generate_kwargs, streamer=ChunkStreamer(tokenizer, tokens_len=tokens_len, skip_prompt = True, skip_special_tokens=True))
             
     def prepare_inputs_for_generation(
             self,

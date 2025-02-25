@@ -18,10 +18,10 @@ def main():
             "group_size": 128,
             "ratio": 1.0,
         }
-        out_dir = "glm4v-nano-v050-ov-int4"
+        out_dir = "glm4v-9b-ov-int4"
     else:
         compression_configuration = None
-        out_dir = "glm4v-nano-v050-ov-fp16"
+        out_dir = "glm4v-9b-ov-fp16"
 
     convert_glm4v_model(model_dir, out_dir, compression_configuration)
 
