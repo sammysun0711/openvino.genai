@@ -80,6 +80,8 @@ public:
             )
         },
         m_is_chat_conversation{false} {
+
+        std::cout << "*************************** VLMPipelineImpl initialization called *************************** \n "  << "\n";
         m_inputs_embedder = std::make_shared<InputsEmbedder>(
             m_vlm_config, models_dir, device, properties);
 
@@ -150,6 +152,7 @@ public:
         GenerationConfig generation_config,
         const StreamerVariant& streamer
     ) {
+        std::cout << "------------------------- VLMDecodedResults generate with stream generation called ------------------------- \n";
         auto generate_start_time = std::chrono::steady_clock::now();
         VLMPerfMetrics perf_metrics;
         auto& raw_counters = perf_metrics.raw_metrics;
@@ -174,6 +177,7 @@ public:
         m_inputs_embedder->set_apply_chat_template_status(generation_config.apply_chat_template);
 
         auto start_get_inputs_embeds = std::chrono::steady_clock::now();
+        std::cout << "[m_inputs_embedder infer]\n";
         ov::Tensor inputs_embeds = m_inputs_embedder->get_inputs_embeds(prompt, rgbs, perf_metrics);
         auto end_get_inputs_embeds = std::chrono::steady_clock::now();
 
@@ -213,7 +217,7 @@ public:
         if (m_sampler.get_seed() != generation_config.rng_seed) {
             m_sampler.set_seed(generation_config.rng_seed);
         }
-
+        std::cout << "get_lm_encoded_results called\n";
         ov::genai::utils::GenerationFinishInfo finish_info = ov::genai::get_lm_encoded_results(m_language, inputs_embeds, new_atten_mask, streamer_ptr, m_sampler, requests,
                                                                                                position_ids, kv_cache_state, m_embedding, rope_delta);
 
@@ -258,6 +262,7 @@ public:
         const std::string& prompt,
         const ov::AnyMap& config_map
     ) {
+        std::cout << "=========================  VLMDecodedResults generate called ========================= \n";
         auto image = config_map.find(ov::genai::image.name());
         auto images = config_map.find(ov::genai::images.name());
         OPENVINO_ASSERT(
@@ -345,6 +350,7 @@ VLMPipeline::VLMPipeline(
     const std::string& device,
     const ov::AnyMap& properties
 ) {
+    std::cout << "############################ VLMPipeline::VLMPipeline called ############################\n";
     auto start_time = std::chrono::steady_clock::now();
     m_pimpl = std::make_unique<VLMPipelineImpl>(models_dir, device, properties);
     auto stop_time = std::chrono::steady_clock::now();
@@ -373,6 +379,7 @@ VLMDecodedResults VLMPipeline::generate(
     const GenerationConfig& generation_config,
     const StreamerVariant& streamer
 ) {
+    std::cout << "=== VLMPipeline::generate Multi image path\n";
     return m_pimpl->generate(prompt, rgbs, generation_config, streamer);
 }
 
@@ -382,6 +389,7 @@ VLMDecodedResults VLMPipeline::generate(
     const GenerationConfig& generation_config,
     const StreamerVariant& streamer
 ) {
+    std::cout << "=== VLMPipeline::generate Single image path\n";
     return m_pimpl->generate(prompt, {rgb}, generation_config, streamer);
 }
 

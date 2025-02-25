@@ -18,7 +18,7 @@ int main(int argc, char* argv[]) try {
 
     std::string device = "CPU";  // GPU can be used as well
     ov::AnyMap enable_compile_cache;
-    if (device == "GPU") {
+    if ((device == "GPU") || (device == "CPU")) {
         // Cache compiled models on disk for GPU to save time on the
         // next run. It's not beneficial for CPU.
         enable_compile_cache.insert({ov::cache_dir("vlm_cache")});
@@ -33,11 +33,14 @@ int main(int argc, char* argv[]) try {
     pipe.start_chat();
     std::cout << "question:\n";
 
-    std::getline(std::cin, prompt);
+    //std::getline(std::cin, prompt);
+    prompt = "Please describe this image.";
+    std::cout << prompt << "\n";
     pipe.generate(prompt,
                   ov::genai::images(rgbs),
                   ov::genai::generation_config(generation_config),
                   ov::genai::streamer(print_subword));
+    /*
     std::cout << "\n----------\n"
         "question:\n";
     while (std::getline(std::cin, prompt)) {
@@ -47,6 +50,8 @@ int main(int argc, char* argv[]) try {
         std::cout << "\n----------\n"
             "question:\n";
     }
+    */
+    std::cout << "\n";
     pipe.finish_chat();
 } catch (const std::exception& error) {
     try {

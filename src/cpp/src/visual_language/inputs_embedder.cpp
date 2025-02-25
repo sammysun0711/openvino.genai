@@ -208,6 +208,8 @@ protected:
     * @return A vector of tensors where each tensor represents a single image with a shape of [1, H, W, C].
     */
     std::vector<ov::Tensor> to_single_image_tensors(const std::vector<ov::Tensor>& images) {
+        ManualTimer step_timer("to_single_image_tensors()");
+        step_timer.start();
         std::vector<ov::Tensor> single_image_tensors;
         for (const auto& image : images) {
             ov::Tensor reshaped_image = image;
@@ -229,6 +231,7 @@ protected:
                 single_image_tensors.push_back(std::move(single_image));
             }
         }
+        step_timer.end();
         return single_image_tensors;
     }
 };
@@ -279,11 +282,12 @@ public:
         }
 
     virtual ov::Tensor get_inputs_embeds(const std::string& prompt, const std::vector<ov::Tensor>& images, ov::genai::VLMPerfMetrics& metrics) override {
+        ManualTimer step_timer("get_inputs_embeds()");
+        step_timer.start();
         std::string images_prompt;
         std::vector<EncodedImage> embeds;
 
         std::vector<ov::Tensor> single_images = to_single_image_tensors(images);
-
         for (const ov::Tensor& image : single_images) {
             EncodedImage encoded_image = m_vision_encoder.encode(image);
             if (m_vlm_config.use_image_id) {
@@ -313,8 +317,12 @@ public:
         }
         images_prompt += prompt;
 
+        // (Xiake): Input prompt embedding processing
+        std::cout << "ov::Tensor encoded_input = get_encoded_input_ids(images_prompt, metrics); called\n";
+        std::cout << "images_prompt: " << images_prompt << "\n";
         ov::Tensor encoded_input = get_encoded_input_ids(images_prompt, metrics);
 
+        std::cout << "ov::Tensor inputs_embeds = m_embedding.infer(encoded_input);" << "\n";
         ov::Tensor inputs_embeds = m_embedding.infer(encoded_input);
         OPENVINO_ASSERT(
             m_vlm_config.hidden_size == inputs_embeds.get_shape().at(2),
@@ -344,7 +352,12 @@ public:
         size_t encoded_input_size = encoded_input.get_size();
         int64_t* end = ids + encoded_input_size;
         float* inputs_embeds_data = inputs_embeds.data<float>();
+
+        std::cout << "image processing ...\n";
+        ManualTimer img_processing_step_timer("image processing");
+        img_processing_step_timer.start();
         for (const EncodedImage& encoded_image : embeds) {
+            std::cout << "const ov::Tensor& resampled_source = resample(encoded_image.resized_source, {encoded_image.resized_source_size}); called\n";
             const ov::Tensor& resampled_source = resample(encoded_image.resized_source, {encoded_image.resized_source_size});
             float* emb = resampled_source.data<float>();
             ids = std::find(ids, end, im_start_id);
@@ -370,10 +383,12 @@ public:
                 }
             }
         }
+        img_processing_step_timer.end();
 
         if (!m_is_chat_conversation) {
             m_image_id = 0;
         }
+        step_timer.end();
         return inputs_embeds;
     }
 
@@ -389,6 +404,8 @@ public:
 
 private:
     ov::Tensor resample(const ov::Tensor& encoded_image, const std::vector<ImageSize>& target_sizes) {
+        ManualTimer step_timer("resample()");
+        step_timer.start();
         size_t bs = encoded_image.get_shape().at(0);
         std::vector<size_t> patch_len{target_sizes.size()};
         std::transform(target_sizes.begin(), target_sizes.end(), patch_len.begin(), [](const ImageSize& height_width) {
@@ -429,7 +446,10 @@ private:
         m_resampler.set_tensor("image_feature", encoded_image);  // [N, H*W, old_hidden_size]
         m_resampler.set_tensor("pos_embed", pos_embed);  // [H*W, N, new_hidden_size]
         m_resampler.set_tensor("key_padding_mask", key_padding_mask);  // [N, H*W]
+
+        std:: cout << "m_resampler.infer(); called\n";
         m_resampler.infer();
+        step_timer.end();
         return m_resampler.get_output_tensor();  // [N, query_num, new_hidden_size]
     }
 
@@ -1569,6 +1589,7 @@ public:
         images_grid_thw.reserve(single_images.size());
         
         for (const auto& image : single_images) {
+            std::cout << "m_vision_encoder.encode(image) called\n";
             EncodedImage encoded_image = m_vision_encoder.encode(image);
             ov::Tensor single_image_embeds = encoded_image.resized_source;
             image_embeds.push_back(std::move(single_image_embeds));
@@ -1962,6 +1983,7 @@ InputsEmbedder::InputsEmbedder(const VLMConfig& vlm_config,
 }
 
 ov::Tensor InputsEmbedder::get_inputs_embeds(const std::string& prompt, const std::vector<ov::Tensor>& images, ov::genai::VLMPerfMetrics& metrics) {
+    std::cout << "ov::Tensor InputsEmbedder::get_inputs_embeds called\n";
     return m_impl->get_inputs_embeds(prompt, images, metrics);
 }
 
