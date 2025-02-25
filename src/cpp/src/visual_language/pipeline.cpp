@@ -217,6 +217,7 @@ public:
         if (m_sampler.get_seed() != generation_config.rng_seed) {
             m_sampler.set_seed(generation_config.rng_seed);
         }
+        std::cout << "=========================================\n";
         std::cout << "get_lm_encoded_results called\n";
         ov::genai::utils::GenerationFinishInfo finish_info = ov::genai::get_lm_encoded_results(m_language, inputs_embeds, new_atten_mask, streamer_ptr, m_sampler, requests,
                                                                                                position_ids, kv_cache_state, m_embedding, rope_delta);

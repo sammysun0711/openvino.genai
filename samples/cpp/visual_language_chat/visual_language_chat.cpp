@@ -16,7 +16,7 @@ int main(int argc, char* argv[]) try {
 
     std::vector<ov::Tensor> rgbs = utils::load_images(argv[2]);
 
-    std::string device = "CPU";  // GPU can be used as well
+    std::string device = "GPU";  // GPU can be used as well
     ov::AnyMap enable_compile_cache;
     if ((device == "GPU") || (device == "CPU")) {
         // Cache compiled models on disk for GPU to save time on the

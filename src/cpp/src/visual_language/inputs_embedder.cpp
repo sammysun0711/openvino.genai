@@ -210,6 +210,9 @@ protected:
     std::vector<ov::Tensor> to_single_image_tensors(const std::vector<ov::Tensor>& images) {
         ManualTimer step_timer("to_single_image_tensors()");
         step_timer.start();
+        std::cout << "Original images size: " << images.size() << "\n";
+        std::cout << "Original images[0] shape: [" << images[0].get_shape()[0] << ", " << images[0].get_shape()[1] << ", " << images[0].get_shape()[2] << ", " << images[0].get_shape()[3] << "]\n";
+
         std::vector<ov::Tensor> single_image_tensors;
         for (const auto& image : images) {
             ov::Tensor reshaped_image = image;
@@ -232,6 +235,9 @@ protected:
             }
         }
         step_timer.end();
+        std::cout << "After preocess, single_image_tensors size: " << single_image_tensors.size() << "\n";
+        std::cout << "After preocess, single_image_tensors[0] shape: [" << single_image_tensors[0].get_shape()[0] << ", " << single_image_tensors[0].get_shape()[1] << ", " << single_image_tensors[0].get_shape()[2] << ", " << single_image_tensors[0].get_shape()[3] << "]\n";
+
         return single_image_tensors;
     }
 };
@@ -288,8 +294,13 @@ public:
         std::vector<EncodedImage> embeds;
 
         std::vector<ov::Tensor> single_images = to_single_image_tensors(images);
+        ManualTimer img_encode_step_timer("image encode");
+        img_encode_step_timer.start();
         for (const ov::Tensor& image : single_images) {
+            ManualTimer single_img_encode_step_timer("m_vision_encoder.encode(image)");
+            single_img_encode_step_timer.start();
             EncodedImage encoded_image = m_vision_encoder.encode(image);
+            single_img_encode_step_timer.end();
             if (m_vlm_config.use_image_id) {
                 images_prompt += m_vlm_config.im_id_start + std::to_string(m_image_id) + m_vlm_config.im_id_end;
                 ++m_image_id;
@@ -315,15 +326,22 @@ public:
             }
             embeds.push_back(std::move(encoded_image));
         }
+        img_encode_step_timer.end();
+
         images_prompt += prompt;
 
         // (Xiake): Input prompt embedding processing
         std::cout << "ov::Tensor encoded_input = get_encoded_input_ids(images_prompt, metrics); called\n";
         std::cout << "images_prompt: " << images_prompt << "\n";
+
         ov::Tensor encoded_input = get_encoded_input_ids(images_prompt, metrics);
 
         std::cout << "ov::Tensor inputs_embeds = m_embedding.infer(encoded_input);" << "\n";
+        ManualTimer embedding_infer_step_timer("m_embedding.infer(encoded_input)");
+        embedding_infer_step_timer.start();
         ov::Tensor inputs_embeds = m_embedding.infer(encoded_input);
+        embedding_infer_step_timer.end();
+
         OPENVINO_ASSERT(
             m_vlm_config.hidden_size == inputs_embeds.get_shape().at(2),
             "Unexpected embedding size"
