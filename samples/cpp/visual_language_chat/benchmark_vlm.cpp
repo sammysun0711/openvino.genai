@@ -43,11 +43,18 @@ int main(int argc, char* argv[]) try {
     size_t num_iter = result["num_iter"].as<size_t>();
     //ov::Tensor image = utils::load_image(image_path);
     std::vector<ov::Tensor> images = utils::load_images(image_path);
+
+    ov::AnyMap enable_compile_cache;
+    if ((device == "GPU") || (device == "CPU")) {
+        // Cache compiled models on disk for GPU to save time on the
+        // next run. It's not beneficial for CPU.
+        enable_compile_cache.insert({ov::cache_dir("vlm_cache")});
+    }
   
     ov::genai::GenerationConfig config;
     config.max_new_tokens = result["max_new_tokens"].as<size_t>();
 
-    ov::genai::VLMPipeline pipe(models_path, device);
+    ov::genai::VLMPipeline pipe(models_path, device, enable_compile_cache);
 
     for (size_t i = 0; i < num_warmup; i++)
         //pipe.generate(prompt, ov::genai::image(image), ov::genai::generation_config(config));
@@ -71,6 +78,8 @@ int main(int argc, char* argv[]) try {
     std::cout << "TTFT: " << metrics.get_ttft().mean  << " ± " << metrics.get_ttft().std << " ms" << std::endl;
     std::cout << "TPOT: " << metrics.get_tpot().mean  << " ± " << metrics.get_tpot().std << " ms/token " << std::endl;
     std::cout << "Throughput: " << metrics.get_throughput().mean  << " ± " << metrics.get_throughput().std << " tokens/s" << std::endl;
+    std::cout << "Average Output tokens counter: " << metrics.get_num_generated_tokens() / num_iter << std::endl;
+    std::cout << "Average Input tokens counter: " << metrics.get_num_input_tokens() / num_iter << std::endl;
 
     return 0;
 } catch (const std::exception& error) {

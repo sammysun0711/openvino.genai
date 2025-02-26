@@ -4,6 +4,7 @@
 #include "vision_encoder.hpp"
 #include "visual_language/clip.hpp"
 #include "utils.hpp"
+#include "timer.hpp"
 
 using namespace ov::genai;
 
@@ -375,7 +376,8 @@ EncodedImage llava_image_embed_make_with_bytes_slice(clip_ctx& ctx_clip, const o
         }
     }
     encoder.set_tensor("pixel_values", pixel_values);
-
+    std::cout << "pixel_values shape: [" << pixel_values.get_shape()[0] << ", " << pixel_values.get_shape()[1] << ", " << pixel_values.get_shape()[2] << ", " << pixel_values.get_shape()[3] << "]\n";
+ 
     ov::Tensor patch_attention_mask{ov::element::f32, {pixel_values.get_shape().at(0), 1, max_h / patch_size * max_w / patch_size}};
     float* attention_data = patch_attention_mask.data<float>();
     std::fill_n(attention_data, patch_attention_mask.get_size(), 0.0f);
@@ -390,7 +392,7 @@ EncodedImage llava_image_embed_make_with_bytes_slice(clip_ctx& ctx_clip, const o
         }
     }
     encoder.set_tensor("patch_attention_mask", patch_attention_mask);
-
+    std::cout << "patch_attention_mask shape: [" << patch_attention_mask.get_shape()[0] << ", " << patch_attention_mask.get_shape()[1] << ", " << patch_attention_mask.get_shape()[2] << "]\n";
     ImageSize resized_source_size{resized_preprocessed.ny / patch_size, resized_preprocessed.nx / patch_size};
     std::vector<ImageSize> tgt_sizes{resized_source_size};
     if (1 < preprocessed.size()) {
@@ -402,7 +404,12 @@ EncodedImage llava_image_embed_make_with_bytes_slice(clip_ctx& ctx_clip, const o
     }
     ov::Tensor position_ids = prepare_vis_position_ids(pixel_values, patch_attention_mask, tgt_sizes, patch_size, ctx_clip.image_size / patch_size);
     encoder.set_tensor("position_ids", position_ids);
+    std::cout << "position_ids shape: [" << position_ids.get_shape()[0] << ", " << position_ids.get_shape()[1] << "]\n";
+
+    ManualTimer encoder_infer_step_timer("encoder infer");
+    encoder_infer_step_timer.start();
     encoder.infer();
+    encoder_infer_step_timer.end();
     const ov::Tensor& output_tensor = encoder.get_output_tensor();
 
     if (1 == preprocessed.size()) {
@@ -1021,6 +1028,7 @@ VisionEncoder::VisionEncoder(
 
 EncodedImage VisionEncoder::encode(const ov::Tensor& image, const ProcessorConfig& config) {
     if (model_type == VLMModelType::MINICPM) {
+        std::cout << "model_type: VLMModelType::MINICPM\n";
         return encode_minicpm(image, config);
     } else if (model_type == VLMModelType::LLAVA) {
         return encode_llava(image, config);
@@ -1038,6 +1046,7 @@ EncodedImage VisionEncoder::encode(const ov::Tensor& image, const ProcessorConfi
 }
 
 EncodedImage VisionEncoder::encode(const ov::Tensor& image, const ov::AnyMap& config_map) {
+    std::cout << "VisionEncoder::encode(const ov::Tensor& image, const ov::AnyMap& config_map) called!\n";
     return encode(image, from_any_map(
         config_map, m_processor_config
     ));
@@ -1046,6 +1055,7 @@ EncodedImage VisionEncoder::encode(const ov::Tensor& image, const ov::AnyMap& co
 EncodedImage VisionEncoder::encode_minicpm(const ov::Tensor& image, const ProcessorConfig& config) {
     clip_ctx ctx_clip;
     ctx_clip.image_size = m_processor_config.image_size;
+    std::cout << "m_processor_config.image_size: " << m_processor_config.image_size << "\n";
     std::copy(config.norm_mean.begin(), config.norm_mean.end(), ctx_clip.image_mean);
     std::copy(config.norm_std.begin(), config.norm_std.end(), ctx_clip.image_std);
     return llava_image_embed_make_with_bytes_slice(ctx_clip, image, m_vision_encoder, config.max_slice_nums, config.scale_resolution, config.patch_size, 0 == config.max_slice_nums);

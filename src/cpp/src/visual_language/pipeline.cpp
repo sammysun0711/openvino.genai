@@ -219,6 +219,10 @@ public:
         }
         std::cout << "=========================================\n";
         std::cout << "get_lm_encoded_results called\n";
+        std::cout << "inputs_embeds size: " << inputs_embeds_size << "\n";
+        std::cout << "inputs_embeds.get_shape(): [" << inputs_embeds.get_shape()[0] << ", " << inputs_embeds.get_shape()[1] << "]\n";
+        std::cout << "new_atten_mask.get_shape(): [" << new_atten_mask.get_shape()[0] << ", " << new_atten_mask.get_shape()[1] << "]\n";
+        std::cout << "position_ids.get_shape(): [" << position_ids.get_shape()[0] << ", " << position_ids.get_shape()[1] << "]\n";
         ov::genai::utils::GenerationFinishInfo finish_info = ov::genai::get_lm_encoded_results(m_language, inputs_embeds, new_atten_mask, streamer_ptr, m_sampler, requests,
                                                                                                position_ids, kv_cache_state, m_embedding, rope_delta);
 
