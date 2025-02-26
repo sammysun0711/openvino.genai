@@ -1,0 +1,1 @@
+benchmark_app -m MiniCPM-V-2_6-ov\openvino_vision_embeddings_model.xml -data_shape "pixel_values[1,3,14,14336],patch_attention_mask[1,1,1024],position_ids[1,1024]" -d GPU -hint latency
