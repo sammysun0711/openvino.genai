@@ -26,6 +26,9 @@ find_package(Threads REQUIRED)
 
 # end of dependencies
 
-set(TARGET_NAME continuous_batching_benchmark)
-add_executable(${TARGET_NAME} ${TARGET_NAME}.cpp)
-target_link_libraries(${TARGET_NAME} PRIVATE openvino::genai nlohmann_json::nlohmann_json cxxopts::cxxopts Threads::Threads)
+#set(TARGET_NAME continuous_batching_benchmark)
+add_executable(continuous_batching_benchmark continuous_batching_benchmark.cpp)
+target_link_libraries(continuous_batching_benchmark PRIVATE openvino::genai nlohmann_json::nlohmann_json cxxopts::cxxopts Threads::Threads)
+
+add_executable(continuous_batching_vlm_benchmark load_image.cpp continuous_batching_vlm_benchmark.cpp)
+target_link_libraries(continuous_batching_vlm_benchmark PRIVATE openvino::genai nlohmann_json::nlohmann_json cxxopts::cxxopts Threads::Threads)
