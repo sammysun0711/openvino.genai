@@ -35,7 +35,7 @@ StatefulLLMPipeline::StatefulLLMPipeline(
     const std::string& device,
     const ov::AnyMap& properties)
     : StatefulLLMPipeline{
-        utils::read_model(models_path, properties),
+        utils::read_model(models_path / "qwen2.5-0.5b-instruct-q4_0.gguf", properties),
         tokenizer,
         device,
         properties,

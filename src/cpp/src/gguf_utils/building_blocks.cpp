@@ -595,6 +595,7 @@ ov::Output<ov::Node> make_int4_weights(
         uint8_t bias2 = (uint8_t)std::round(-1.f * static_cast<float>(bias_data[i * 2 + 1]) / static_cast<float>(scale_data[i * 2 + 1]));
         zero_point_data[i] = (bias2 << 4) | (bias1 & 0x0F);
     }
+    zero_point_data[0] += 1; // Temp fix
 
     auto zero_points_node = std::make_shared<ov::op::v0::Constant>(zero_point_tensor);
     auto zero_points_f16 = std::make_shared<ov::op::v0::Convert>(zero_points_node, ov::element::f16);
@@ -663,7 +664,7 @@ ov::Output<ov::Node> make_fc(
     }
     return output;
 }
-
+/*
 ov::Output<ov::Node> make_lm_head(
     const std::string& key,
     const ov::Output<ov::Node>& input,
@@ -682,6 +683,21 @@ ov::Output<ov::Node> make_lm_head(
     } else {
         w_f32 = embeddings_node;
     }
+    return std::make_shared<ov::op::v0::MatMul>(
+        input, w_f32, false, true);
+}*/
+
+ov::Output<ov::Node> make_lm_head(
+    const std::string& key,
+    const ov::Output<ov::Node>& input,
+    const std::unordered_map<std::string, ov::Tensor>& consts,
+    const ov::Output<ov::Node>& embeddings_node,
+    gguf_tensor_type qtype) {
+
+    ov::Output<ov::Node> w_f32;
+
+    w_f32 = embeddings_node;
+
     return std::make_shared<ov::op::v0::MatMul>(
         input, w_f32, false, true);
 }
