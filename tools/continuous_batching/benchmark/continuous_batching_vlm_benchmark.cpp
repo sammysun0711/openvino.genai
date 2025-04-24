@@ -1,33 +1,33 @@
 // Copyright (C) 2023-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include <fstream>
-#include <cstdlib>
+#include <atomic>
 #include <chrono>
+#include <cstdlib>
+#include <cxxopts.hpp>
+#include <filesystem>
+#include <fstream>
+#include <mutex>
+#include <nlohmann/json.hpp>
 #include <ostream>
 #include <random>
 #include <stdexcept>
 #include <thread>
-#include <mutex>
-#include <atomic>
 
-#include <nlohmann/json.hpp>
-#include <cxxopts.hpp>
-
+#include "load_image.hpp"
 #include "openvino/genai/cache_eviction.hpp"
-#include "openvino/genai/tokenizer.hpp"
 #include "openvino/genai/continuous_batching_pipeline.hpp"
 #include "openvino/genai/generation_handle.hpp"
-#include "load_image.hpp"
+#include "openvino/genai/tokenizer.hpp"
 #include "openvino/genai/visual_language/pipeline.hpp"
-#include <filesystem>
+
+namespace fs = std::filesystem;
 
 class AutoStartTimer {
     const decltype(std::chrono::steady_clock::now()) m_start;
+
 public:
-    AutoStartTimer() :
-        m_start(std::chrono::steady_clock::now()) {
-    }
+    AutoStartTimer() : m_start(std::chrono::steady_clock::now()) {}
 
     double current_in_milli() const {
         auto m_end = std::chrono::steady_clock::now();
@@ -37,6 +37,7 @@ public:
 
 struct Dataset {
     std::vector<std::string> m_prompts;
+    std::vector<ov::Tensor> m_rgbs;
     std::vector<ov::genai::GenerationConfig> m_sampling_params;
     std::vector<size_t> m_input_lens, m_output_lens;
 
@@ -45,13 +46,15 @@ struct Dataset {
 
     void reserve(const size_t size) {
         m_prompts.reserve(size);
+        m_rgbs.reserve(size);
         m_sampling_params.reserve(size);
         m_input_lens.reserve(size);
         m_output_lens.reserve(size);
     }
 
-    void push_data(std::string prompt, ov::genai::GenerationConfig sampling_params) {
+    void push_data(std::string prompt, ov::genai::GenerationConfig sampling_params, ov::Tensor rgb) {
         m_prompts.push_back(prompt);
+        m_rgbs.push_back(rgb);
         m_sampling_params.push_back(sampling_params);
     }
 
@@ -82,7 +85,11 @@ struct Dataset {
     }
 };
 
-Dataset filtered_dataset(const std::string& models_path, const std::string& dataset_path, const size_t num_prompts, const size_t max_input_len, const size_t max_output_len) {
+Dataset filtered_dataset(const std::string& models_path,
+                         const std::string& dataset_path,
+                         const size_t num_prompts,
+                         const size_t max_input_len,
+                         const size_t max_output_len) {
     std::ifstream json_file(dataset_path.c_str());
     OPENVINO_ASSERT(json_file.is_open(), "Cannot open dataset file");
 
@@ -100,27 +107,43 @@ Dataset filtered_dataset(const std::string& models_path, const std::string& data
 
     ov::genai::Tokenizer tokenizer(models_path);
 
-    for (auto json_data_iterator = json_dataset.begin(); json_data_iterator != json_dataset.end() && dataset.size() < num_prompt_candidates; ++json_data_iterator) {
-        auto & json_data = *json_data_iterator;
+    for (auto json_data_iterator = json_dataset.begin();
+         json_data_iterator != json_dataset.end() && dataset.size() < num_prompt_candidates;
+         ++json_data_iterator) {
+        auto& json_data = *json_data_iterator;
 
+        std::cout << "Enter loop\n";
         // Filter out the conversations with less than 2 turns.
         if (json_data["conversations"].size() < 2)
             continue;
 
-	// std::cout << "Current path is " << std::filesystem::current_path() << "\n";
-	//std::filesystem current_dir = std::filesystem::current_path();
+        // std::cout << "Current path is " << std::filesystem::current_path() << "\n";
+        // std::filesystem current_dir = std::filesystem::current_path();
         // Only keep the first two turns of each conversation.
+        std::cout << "Get human question\n";
         std::string human_question = json_data["conversations"][0]["value"];
-	std::string gpt_answer = json_data["conversations"][1]["value"];
-	std::string image_name = json_data["image"];
-	size_t image_height = json_data["height"];
-	size_t image_width = json_data["width"];
+        std::cout << "Get gpt answer\n";
+        std::string gpt_answer = json_data["conversations"][1]["value"];
+        std::cout << "Get image name\n";
+        std::string image_name = json_data["image"];
+        std::cout << "Get image height\n";
+        size_t image_height = json_data["height"];
+        std::cout << "Get image width\n";
+        size_t image_width = json_data["width"];
 
-	//std::filesystem image_path = std::filesystem(std::filesystem::current_path() / image_name.string() + ".jpg");
-	std::string image_path = std::filesystem::current_path().string() + image_name + ".jpg";
-	std::cout << "image_path: " << image_path << "\n";
+        //std::filesystem image_path = std::filesystem(std::filesystem::current_path() / image_name.string() + ".jpg");
+        //std::string image_path = (fs::current_path() / image_name).string() + ".jpg";
+        //std::cout << "image_path: " << image_path << "\n";
+        //std::filesystem::path image_path = std::filesystem::current_path() / "gpt4-o/image" / image_name + std::string(".jpg");
+        //std::cout << "image_path: " << image_path.string() << "\n";
+        //std::string image_path = "/home/openvino/workspaces/AIGC/openvino.genai/gpt4-o/image/0.jpg";
+        fs::path current_dir = fs::current_path();
+        std::cout << "current_dir: " << current_dir << "\n";
+        fs::path image_path = current_dir / "gpt4-o" / "image" / image_name;
+        std::cout << "image_path: " << image_path << "\n";
+        //std::filesystem::path image_path = std::filesystem::current_path() / "gpt4-o/image" / image_name + std::string(".jpg");
 
-	std::vector<ov::Tensor> rgbs = utils::load_images(image_path);
+        ov::Tensor rgb = utils::load_image(image_path);
 
         ov::Tensor _input_ids_prompt = tokenizer.encode(human_question).input_ids;
         size_t input_len = _input_ids_prompt.get_size();
@@ -139,15 +162,16 @@ Dataset filtered_dataset(const std::string& models_path, const std::string& data
         greedy_search.max_new_tokens = std::min(max_output_len, output_len);
         greedy_search.ignore_eos = true;
 
-        dataset.push_data(human_question, greedy_search);
+        dataset.push_data(human_question, greedy_search, rgb);
         dataset.push_lens(input_len, output_len);
     }
 
     // sample dataset
     srand(42);
 
-    for (size_t selected_index = rand() % dataset.size(); sampled_dataset.size() < num_prompts; selected_index = rand() % dataset.size()) {
-        sampled_dataset.push_data(dataset.m_prompts[selected_index], dataset.m_sampling_params[selected_index]);
+    for (size_t selected_index = rand() % dataset.size(); sampled_dataset.size() < num_prompts;
+        selected_index = rand() % dataset.size()) {
+        sampled_dataset.push_data(dataset.m_prompts[selected_index], dataset.m_sampling_params[selected_index], dataset.m_rgbs[selected_index]);
         sampled_dataset.push_lens(dataset.m_input_lens[selected_index], dataset.m_output_lens[selected_index]);
     }
 
@@ -155,13 +179,12 @@ Dataset filtered_dataset(const std::string& models_path, const std::string& data
 }
 
 class GenerationInfo {
-
     struct SequenceInfo {
         std::chrono::milliseconds ttft;
         std::chrono::milliseconds cumulated_tpot;
         std::chrono::milliseconds mean_tpot;
         size_t num_output_tokens;
-    
+
         std::chrono::steady_clock::time_point start_time;
         std::chrono::steady_clock::time_point last_read_time;
 
@@ -179,7 +202,6 @@ class GenerationInfo {
             } else {
                 cumulated_tpot += std::chrono::duration_cast<std::chrono::milliseconds>(new_read_time - last_read_time);
                 mean_tpot = cumulated_tpot / num_output_tokens;
-
             }
             num_output_tokens++;
             last_read_time = new_read_time;
@@ -200,8 +222,7 @@ class GenerationInfo {
     size_t input_len;
 
 public:
-    GenerationInfo(ov::genai::GenerationHandle generation_handle, size_t input_len) : input_len(input_len)
-    {
+    GenerationInfo(ov::genai::GenerationHandle generation_handle, size_t input_len) : input_len(input_len) {
         this->generation_handle = std::move(generation_handle);
         start_time = std::chrono::steady_clock::now();
     }
@@ -212,8 +233,8 @@ public:
         sequences_info.at(sequence_id).update();
     }
 
-    void update(ov::genai::GenerationOutputs& outputs){
-        for (auto const& output: outputs) {
+    void update(ov::genai::GenerationOutputs& outputs) {
+        for (auto const& output : outputs) {
             update_sequence(output.first);
         }
     }
@@ -261,12 +282,14 @@ class GenerationInfoCollector {
     std::chrono::steady_clock::time_point start_time;
 
 public:
-
     void set_start_time(std::chrono::steady_clock::time_point start_time) {
         this->start_time = start_time;
     }
 
-    void add_generation(ov::genai::ContinuousBatchingPipeline* pipe, Dataset* dataset, size_t request_id, bool is_speculative_decoding_enabled) {
+    void add_generation(ov::genai::VLMPipeline* pipe,
+                        Dataset* dataset,
+                        size_t request_id,
+                        bool is_speculative_decoding_enabled) {
         auto sampling_params = dataset->m_sampling_params[request_id];
         if (is_speculative_decoding_enabled) {
             // to enable static speculative decoding
@@ -274,9 +297,15 @@ public:
             // to enable dynamic speculative decoding
             // sampling_params.assistant_confidence_threshold = 0.4f;
         }
-        ov::genai::GenerationHandle generation_handle = pipe->add_request(request_id, dataset->m_prompts[request_id], sampling_params);
+        /*
+        ov::genai::GenerationHandle generation_handle =
+            pipe->add_request(request_id, dataset->m_prompts[request_id],dataset->m_rgbs[request_id], sampling_params);
+        */
+        std::cout << "pipe->generate(dataset->m_prompts[request_id], ov::genai::image(dataset->m_rgbs[request_id])); called\n";
+        pipe->generate(dataset->m_prompts[request_id], ov::genai::image(dataset->m_rgbs[request_id]));
+        //pipe->generate(dataset->m_prompts[request_id], dataset->m_rgbs[request_id]);
         std::lock_guard<std::mutex> lock(mutex);
-        generations_info.emplace_back(std::move(generation_handle), dataset->m_input_lens[request_id]);
+        //generations_info.emplace_back(std::move(generation_handle), dataset->m_input_lens[request_id]);
     }
 
     size_t run() {
@@ -284,7 +313,7 @@ public:
         for (GenerationInfo& generation_info : generations_info) {
             if (!generation_info.is_active())
                 continue;
-            
+
             if (generation_info.is_finished()) {
                 num_finished++;
                 generation_info.set_inactive();
@@ -297,14 +326,14 @@ public:
     }
 
     void print_statistics() {
-        std::chrono::seconds total_duration = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start_time);
+        std::chrono::seconds total_duration =
+            std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start_time);
         std::chrono::milliseconds mean_ttft = std::chrono::milliseconds::zero();
         std::chrono::milliseconds mean_tpot = std::chrono::milliseconds::zero();
         size_t total_input_len = 0;
         size_t total_output_len = 0;
-        
-    
-        for (GenerationInfo& generation_info : generations_info){
+
+        for (GenerationInfo& generation_info : generations_info) {
             auto generation_metrics = generation_info.get_metrics();
             mean_ttft += generation_metrics.mean_ttft;
             mean_tpot += generation_metrics.mean_tpot;
@@ -319,11 +348,15 @@ public:
         std::cout << "Input throughput: " << total_input_len / total_duration.count() << " tokens / s" << std::endl;
         std::cout << "Output throughput: " << total_output_len / total_duration.count() << " tokens / s" << std::endl;
         std::cout << "Mean TTFT: " << mean_ttft.count() << " ms" << std::endl;
-        std::cout << "Mean TPOT: " << mean_tpot.count() << " ms" << std::endl; 
+        std::cout << "Mean TPOT: " << mean_tpot.count() << " ms" << std::endl;
     }
 };
 
-void trafficSimulator(ov::genai::ContinuousBatchingPipeline* pipe, Dataset* dataset, std::string request_rate, GenerationInfoCollector* generation_info_collector, bool is_speculative_decoding_enabled) {
+void trafficSimulator(ov::genai::VLMPipeline* pipe,
+                      Dataset* dataset,
+                      std::string request_rate,
+                      GenerationInfoCollector* generation_info_collector,
+                      bool is_speculative_decoding_enabled) {
     double numeric_request_rate;
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -356,7 +389,7 @@ void trafficSimulator(ov::genai::ContinuousBatchingPipeline* pipe, Dataset* data
     }
     std::cout << "All requests sent, traffic simulation finished. Exiting thread." << std::endl;
 }
-
+/*
 void llmEngineLoop(ov::genai::ContinuousBatchingPipeline* pipe, Dataset* dataset, std::atomic<bool>* finishThread) {
     std::cout << "Launching LLM engine thread" << std::endl;
     size_t num_finished = 0;
@@ -366,6 +399,27 @@ void llmEngineLoop(ov::genai::ContinuousBatchingPipeline* pipe, Dataset* dataset
             pipe->step();
         }
     }
+    std::cout << "All requests processed, LLM Engine loop escaped. Exiting thread." << std::endl;
+}
+*/
+
+void llmEngineLoop(ov::genai::VLMPipeline* pipe, Dataset* dataset, std::atomic<bool>* finishThread) {
+    std::cout << "Launching LLM engine thread" << std::endl;
+    size_t num_finished = 0;
+    /*
+    while (!(*finishThread)) {
+        while (pipe->has_non_finished_requests()) {
+            pipe->step();
+        }
+    }
+    */
+    /*
+    while (!(*finishThread)) {
+        while (pipe->has_non_finished_requests()) {
+            pipe->step();
+        }
+    }*/
+
     std::cout << "All requests processed, LLM Engine loop escaped. Exiting thread." << std::endl;
 }
 
@@ -388,19 +442,24 @@ bool parse_plugin_config_json(nlohmann::json& node, ov::AnyMap& device_config_ma
     for (auto& element : node.items()) {
         if (element.value().is_string()) {
             device_config_map[std::string(element.key())] = element.value().get<std::string>();
-            std::cout << "Setting plugin config: " << element.key() << " : " << element.value().get<std::string>() << std::endl;
+            std::cout << "Setting plugin config: " << element.key() << " : " << element.value().get<std::string>()
+                      << std::endl;
         } else if (element.value().is_number_integer()) {
             device_config_map[std::string(element.key())] = element.value().get<std::int64_t>();
-            std::cout << "Setting plugin config: " << element.key() << " : " << element.value().get<std::int64_t>() << std::endl;
+            std::cout << "Setting plugin config: " << element.key() << " : " << element.value().get<std::int64_t>()
+                      << std::endl;
         } else if (element.value().is_number_float()) {
             device_config_map[std::string(element.key())] = element.value().get<float>();
-            std::cout << "Setting plugin config: " << element.key() << " : " << element.value().get<float>() << std::endl;
+            std::cout << "Setting plugin config: " << element.key() << " : " << element.value().get<float>()
+                      << std::endl;
         } else if (element.value().is_number_unsigned()) {
             device_config_map[std::string(element.key())] = element.value().get<uint64_t>();
-            std::cout << "Setting plugin config: " << element.key() << " : " << element.value().get<float>() << std::endl;
+            std::cout << "Setting plugin config: " << element.key() << " : " << element.value().get<float>()
+                      << std::endl;
         } else if (element.value().is_boolean()) {
             device_config_map[std::string(element.key())] = element.value().get<bool>();
-            std::cout << "Setting plugin config: " << element.key() << " : " << element.value().get<bool>() << std::endl;
+            std::cout << "Setting plugin config: " << element.key() << " : " << element.value().get<bool>()
+                      << std::endl;
         } else {
             std::cout << "Error: nlohmann json type not supported for: " << element.key() << std::endl;
             return false;
@@ -421,9 +480,9 @@ bool parse_plugin_config_string(const std::string& config_string, ov::AnyMap& de
         node = nlohmann::json::parse(config_string);
     } catch (const nlohmann::json::parse_error& e) {
         std::cout << "ERROR: Plugin config json parser error - message: " << e.what() << '\n'
-                << "exception id: " << e.id << '\n'
-                << "byte position of error: " << e.byte << std::endl;
-                return false;
+                  << "exception id: " << e.id << '\n'
+                  << "byte position of error: " << e.byte << std::endl;
+        return false;
     } catch (...) {
         std::cout << "ERROR: Plugin config json parser error - message: " << std::endl;
         return false;
@@ -437,7 +496,6 @@ bool parse_plugin_config_string(const std::string& config_string, ov::AnyMap& de
     return parse_plugin_config_json(node, device_config_map);
 }
 
-
 int main(int argc, char* argv[]) try {
     //
     // Command line options
@@ -445,21 +503,39 @@ int main(int argc, char* argv[]) try {
 
     cxxopts::Options options("benchmark_sample", "Help command");
 
-    options.add_options()
-    ("n,num_prompts", "A number of prompts", cxxopts::value<size_t>()->default_value("1000"))
-    ("b,max_batch_size", "A maximum number of batched tokens", cxxopts::value<size_t>()->default_value("256"))
-    ("dynamic_split_fuse", "Whether to use dynamic split-fuse or vLLM scheduling", cxxopts::value<bool>()->default_value("true"))
-    ("m,model", "Path to model and tokenizers base directory", cxxopts::value<std::string>()->default_value("."))
-    ("draft_model", "Path to assistant model directory", cxxopts::value<std::string>()->default_value(""))
-    ("dataset", "Path to dataset .json file", cxxopts::value<std::string>()->default_value("./ShareGPT_V3_unfiltered_cleaned_split.json"))
-    ("max_input_len", "Max input length take from dataset", cxxopts::value<size_t>()->default_value("1024"))
-    ("max_output_len", "Max output length", cxxopts::value<size_t>()->default_value("2048"))
-    ("request_rate", "Number of requests per second. If this is inf, then all the requests are sent at time 0. Otherwise, we use Poisson process to synthesize the request arrival times.", cxxopts::value<std::string>()->default_value("inf"))
-    ("cache_size", "Size of memory used for KV cache in GB. Default: 16", cxxopts::value<size_t>()->default_value("16"))
-    ("device", "Target device to run the model. Default: CPU", cxxopts::value<std::string>()->default_value("CPU"))
-    ("device_config", "Plugin configuration JSON. Example: '{\"MODEL_DISTRIBUTION_POLICY\":\"TENSOR_PARALLEL\",\"PERF_COUNT\":true}' Default: {\"PERF_COUNT\":true}", cxxopts::value<std::string>()->default_value("{\"PERF_COUNT\":true}"))
-    ("use_cache_eviction", "Whether to use cache eviction", cxxopts::value<bool>()->default_value("false"))
-    ("h,help", "Print usage");
+    options.add_options()("n,num_prompts", "A number of prompts", cxxopts::value<size_t>()->default_value("1000"))(
+        "b,max_batch_size",
+        "A maximum number of batched tokens",
+        cxxopts::value<size_t>()->default_value("256"))("dynamic_split_fuse",
+                                                        "Whether to use dynamic split-fuse or vLLM scheduling",
+                                                        cxxopts::value<bool>()->default_value("true"))(
+        "m,model",
+        "Path to model and tokenizers base directory",
+        cxxopts::value<std::string>()->default_value(
+            "."))("draft_model", "Path to assistant model directory", cxxopts::value<std::string>()->default_value(""))(
+        "dataset",
+        "Path to dataset .json file",
+        cxxopts::value<std::string>()->default_value("./ShareGPT_V3_unfiltered_cleaned_split.json"))(
+        "max_input_len",
+        "Max input length take from dataset",
+        cxxopts::value<size_t>()->default_value(
+            "1024"))("max_output_len", "Max output length", cxxopts::value<size_t>()->default_value("2048"))(
+        "request_rate",
+        "Number of requests per second. If this is inf, then all the requests are sent at time 0. Otherwise, we use "
+        "Poisson process to synthesize the request arrival times.",
+        cxxopts::value<std::string>()->default_value("inf"))("cache_size",
+                                                             "Size of memory used for KV cache in GB. Default: 16",
+                                                             cxxopts::value<size_t>()->default_value("16"))(
+        "device",
+        "Target device to run the model. Default: CPU",
+        cxxopts::value<std::string>()->default_value("CPU"))(
+        "device_config",
+        "Plugin configuration JSON. Example: '{\"MODEL_DISTRIBUTION_POLICY\":\"TENSOR_PARALLEL\",\"PERF_COUNT\":true}' "
+        "Default: {\"PERF_COUNT\":true}",
+        cxxopts::value<std::string>()->default_value("{\"PERF_COUNT\":true}"))(
+        "use_cache_eviction",
+        "Whether to use cache eviction",
+        cxxopts::value<bool>()->default_value("false"))("h,help", "Print usage");
 
     cxxopts::ParseResult result;
     try {
@@ -496,18 +572,19 @@ int main(int argc, char* argv[]) try {
 
     // Perform the first inference
     ov::genai::SchedulerConfig scheduler_config;
-    scheduler_config.max_num_batched_tokens = max_batch_size,
-    scheduler_config.cache_size = cache_size,
+    scheduler_config.max_num_batched_tokens = max_batch_size, scheduler_config.cache_size = cache_size,
     scheduler_config.dynamic_split_fuse = dynamic_split_fuse,
-    scheduler_config.max_num_seqs = 256; // not used if dynamic_split_fuse=True
+    scheduler_config.max_num_seqs = 256;  // not used if dynamic_split_fuse=True
     if (use_cache_eviction) {
         scheduler_config.use_cache_eviction = true;
-        scheduler_config.cache_eviction_config = ov::genai::CacheEvictionConfig(32, 32, 128, ov::genai::AggregationMode::NORM_SUM);
+        scheduler_config.cache_eviction_config =
+            ov::genai::CacheEvictionConfig(32, 32, 128, ov::genai::AggregationMode::NORM_SUM);
     }
 
     std::cout << "Benchmarking parameters: " << std::endl;
     std::cout << "\tMax number of batched tokens: " << scheduler_config.max_num_batched_tokens << std::endl;
-    std::cout << "\tScheduling type: " << (scheduler_config.dynamic_split_fuse ? "dynamic split-fuse" : "vLLM") << std::endl;
+    std::cout << "\tScheduling type: " << (scheduler_config.dynamic_split_fuse ? "dynamic split-fuse" : "vLLM")
+              << std::endl;
     if (!scheduler_config.dynamic_split_fuse) {
         std::cout << "\tMax number of batched sequences: " << scheduler_config.max_num_seqs << std::endl;
     }
@@ -520,31 +597,45 @@ int main(int argc, char* argv[]) try {
 
     ov::AnyMap device_config_map = {};
     if (is_speculative_decoding_enabled) {
-        device_config_map.insert({ ov::genai::draft_model(draft_model_path) });
+        device_config_map.insert({ov::genai::draft_model(draft_model_path)});
     }
     if (!parse_plugin_config_string(device_config, device_config_map)) {
         std::cout << "ERROR: Wrong json parameter in device_config." << std::endl;
         return EXIT_FAILURE;
     }
-    
+
     // Benchmarking
     std::cout << "Loading models, creating pipelines, preparing environment..." << std::endl;
-    ov::genai::ContinuousBatchingPipeline pipe(models_path, scheduler_config, device, device_config_map);
+    //ov::genai::ContinuousBatchingPipeline pipe(models_path, scheduler_config, device, device_config_map);
+    //ov::genai::VLMPipeline pipe(models_path, scheduler_config, device, device_config_map);
+    ov::genai::VLMPipeline pipe(models_path, device, device_config_map);
+    //ov::genai::ContinuousBatchingPipeline pipe(models_path, scheduler_config, device, device_config_map);
 
-    std::cout << "Setup finished, launching LLM executor, traffic simulation and statistics reporter threads" << std::endl;
+    std::cout << "Setup finished, launching LLM executor, traffic simulation and statistics reporter threads"
+              << std::endl;
 
     GenerationInfoCollector generation_info_collector;
 
     std::atomic<bool> finishGenerationThread{false};
     if (request_rate == "inf") {
-        std::thread trafficSimulatorThread(trafficSimulator, &pipe, &dataset, request_rate, &generation_info_collector, is_speculative_decoding_enabled);
+        std::thread trafficSimulatorThread(trafficSimulator,
+                                           &pipe,
+                                           &dataset,
+                                           request_rate,
+                                           &generation_info_collector,
+                                           is_speculative_decoding_enabled);
         trafficSimulatorThread.join();
     }
-    
+
     std::thread lmmEngineThread(llmEngineLoop, &pipe, &dataset, &finishGenerationThread);
     std::thread statisticsReporterThread(statisticsReporter, &generation_info_collector, num_prompts);
     if (request_rate != "inf") {
-        std::thread trafficSimulatorThread(trafficSimulator, &pipe, &dataset, request_rate, &generation_info_collector, is_speculative_decoding_enabled);
+        std::thread trafficSimulatorThread(trafficSimulator,
+                                           &pipe,
+                                           &dataset,
+                                           request_rate,
+                                           &generation_info_collector,
+                                           is_speculative_decoding_enabled);
         trafficSimulatorThread.join();
     }
     statisticsReporterThread.join();
@@ -555,11 +646,13 @@ int main(int argc, char* argv[]) try {
 } catch (const std::exception& error) {
     try {
         std::cerr << error.what() << '\n';
-    } catch (const std::ios_base::failure&) {}
+    } catch (const std::ios_base::failure&) {
+    }
     return EXIT_FAILURE;
 } catch (...) {
     try {
         std::cerr << "Non-exception object thrown\n";
-    } catch (const std::ios_base::failure&) {}
+    } catch (const std::ios_base::failure&) {
+    }
     return EXIT_FAILURE;
 }

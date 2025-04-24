@@ -4,6 +4,7 @@
 # start of dependencies
 
 include(FetchContent)
+set(CMAKE_CXX_STANDARD 17)
 
 if(POLICY CMP0135)
     cmake_policy(SET CMP0135 NEW)

@@ -61,11 +61,15 @@ int main(int argc, char* argv[]) try {
     std::cout << std::fixed << std::setprecision(2);
     std::cout << "Load time: " << metrics.get_load_time() << " ms" << std::endl;
     std::cout << "Generate time: " << metrics.get_generate_duration().mean << " ± " << metrics.get_generate_duration().std << " ms" << std::endl;
+    std::cout << "Inference duration time: " << metrics.get_inference_duration().mean << " ± " << metrics.get_inference_duration().std << " ms" << std::endl;
     std::cout << "Tokenization time: " << metrics.get_tokenization_duration().mean << " ± " << metrics.get_tokenization_duration().std << " ms" << std::endl;
     std::cout << "Detokenization time: " << metrics.get_detokenization_duration().mean << " ± " << metrics.get_detokenization_duration().std << " ms" << std::endl;
     std::cout << "Embeddings preparation time: " << metrics.get_prepare_embeddings_duration().mean << " ± " << metrics.get_prepare_embeddings_duration().std << " ms" << std::endl;
+    std::cout << "Num input tokens: " << metrics.get_num_input_tokens() << std::endl;
+    std::cout << "Num generated tokens: " << metrics.get_num_generated_tokens() << std::endl;
     std::cout << "TTFT: " << metrics.get_ttft().mean  << " ± " << metrics.get_ttft().std << " ms" << std::endl;
     std::cout << "TPOT: " << metrics.get_tpot().mean  << " ± " << metrics.get_tpot().std << " ms/token " << std::endl;
+    std::cout << "IPOT: " << metrics.get_ipot().mean  << " ± "  << metrics.get_ipot().std << " ms/token " << std::endl;
     std::cout << "Throughput: " << metrics.get_throughput().mean  << " ± " << metrics.get_throughput().std << " tokens/s" << std::endl;
 
     return 0;
