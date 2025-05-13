@@ -11,6 +11,7 @@
 #include <openvino/openvino.hpp>
 #include "openvino/runtime/core.hpp"
 #include "openvino/opsets/opset13.hpp"
+#include "openvino/genai/tokenizer.hpp"
 
 #include "gguf_utils/building_blocks.hpp"
 #include "gguf_utils/gguf_modeling.hpp"
@@ -152,6 +153,153 @@ std::shared_ptr<ov::Model> create_language_model(
 
 } // namespace
 
+ov::Core core_with_extension() {
+    ov::Core core;
+    const char* ov_tokenizer_path = "/home/openvino/workspaces/AIGC/openvino.genai/build/openvino_genai/libopenvino_tokenizers.so";
+    OPENVINO_ASSERT(ov_tokenizer_path, "openvino_tokenizers path is not set");
+    core.add_extension(ov_tokenizer_path);
+    return core;
+}
+
+ov::Core get_core_singleton() {
+    static ov::Core core = core_with_extension();
+    return core;
+}
+/*
+def add_ragged_dimension(input_node: list[ov.Output]) -> list[ov.Output]:
+    shape = opset.shape_of(input_node[0])
+    batch_size = opset.gather(shape, as_node(0), as_node(0))
+    ragged_begins = opset.range(as_node(0), batch_size, as_node(1), output_type="i32").outputs()
+    ragged_ends = opset.range(
+        as_node(1), opset.add(batch_size, make_constant_node(1, Type.i64)), as_node(1), output_type="i32"
+    ).outputs()
+    return ragged_begins + ragged_ends + input_node
+*/
+/*
+std::tuple<ov::Output<ov::Node>, ov::Output<ov::Node>> add_ragged_dimension(const std::vector<ov::Output<ov::Node>>& input_node) {
+    auto shape = std::make_shared<ov::op::v3::ShapeOf>(input_node[0]);
+    auto batch_size = std::make_shared<ov::op::v8::Gather>(shape, ov::op::v0::Constant(ov::element::i64, {1}, 0), ov::op::v0::Constant(ov::element::i64, {1}, 0));
+    auto ragged_begins = std::make_shared<ov::op::v4::Range>(ov::op::v0::Constant(ov::element::i32, {1}, 0), batch_size, ov::op::v0::Constant(ov::element::i32, {1}, 1));
+    auto ragged_ends = std::make_shared<ov::op::v4::Range>(ov::op::v0::Constant(ov::element::i32, {1}, 1), std::make_shared<ov::op::v1::Add>(batch_size, ov::op::v0::Constant(ov::element::i32, {1}, 1)), ov::op::v0::Constant(ov::element::i32, {1}, 1));
+
+    return {ragged_begins->outputs()[0], ragged_ends->outputs()[0]};
+}
+*/
+
+std::vector<ov::Output<ov::Node>> add_ragged_dimension(const std::vector<ov::Output<ov::Node>>& input_node) {
+    std::vector<ov::Output<ov::Node>> output_nodes;
+    auto input_shape = std::make_shared<ov::op::v3::ShapeOf>(input_node[0]);
+    auto const_0 = std::make_shared<ov::op::v0::Constant>(
+        ov::element::i64, ov::Shape{}, 0);
+    auto const_1 = std::make_shared<ov::op::v0::Constant>(
+        ov::element::i64, ov::Shape{}, 0);
+    auto batch_size = std::make_shared<ov::op::v8::Gather>(
+        input_shape, const_0, const_0);
+
+    auto ragged_begins = std::make_shared<ov::op::v4::Range>(const_0, batch_size, const_1, ov::element::i32);
+    auto ragged_add = std::make_shared<ov::op::v1::Add>(batch_size, const_1);
+    auto ragged_ends = std::make_shared<ov::op::v4::Range>(const_1, ragged_add, const_1, ov::element::i32);
+
+    output_nodes.push_back(ragged_begins->outputs()[0]);
+    output_nodes.push_back(ragged_ends->outputs()[0]);
+    
+    for (auto& node : input_node) {
+        output_nodes.push_back(node);
+    }
+    
+    return output_nodes;
+}
+
+bool is_special(int token_type){
+    return token_type == 3 || token_type == 4;
+}
+
+std::shared_ptr<ov::Model> create_tokenizer_model(
+    const std::map<std::string, GGUFMetaData>& configs,
+    std::unordered_map<std::string, ov::Tensor>& consts) { 
+    std::cout << "Create tokenizer model called\n";
+    std::string model_type = std::get<std::string>(configs.at("tokenizer.model"));
+    std::cout << "model_type " << model_type << "\n";
+    std::string pre = std::get<std::string>(configs.at("tokenizer.pre"));
+    std::cout << "pre " << pre << "\n";
+    int eos_token_id = std::get<int>(configs.at("tokenizer.eos_token_id"));
+    std::cout << "eos_token_id " << eos_token_id << "\n";
+    int padding_token_id = std::get<int>(configs.at("tokenizer.padding_token_id"));
+    std::cout << "padding_token_id " << padding_token_id << "\n";
+    int bos_token_id = std::get<int>(configs.at("tokenizer.bos_token_id"));
+    std::cout << "bos_token_id " << bos_token_id << "\n";
+    auto add_bos_token = configs.at("tokenizer.add_bos_token");
+    //std::cout << "add_bos_token " << add_bos_token << "\n";
+    std::string chat_template = std::get<std::string>(configs.at("tokenizer.chat_template"));
+    std::cout << "chat_template " << chat_template << "\n";
+
+    std::vector<std::string> tokens = std::get<std::vector<std::string>>(configs.at("tokenizer.tokens"));
+    std::cout << "tokens[0]: " << tokens[0] << "\n";
+
+    //std::vector<int> tokens_type = std::get<std::vector<int>>(configs.at("tokenizer.tokens_type"));
+    //std::cout << "token_type[0]" << token_type[0] << "\n";
+
+    std::vector<std::string> merges = std::get<std::vector<std::string>>(configs.at("tokenizer.merges"));
+    std::cout << "merges[0]: " << merges[0] << "\n";
+
+    std::cout << "Extract meta data finished\n";
+
+    ov::Core core = core_with_extension();
+
+    // 1 string tensor
+    // tokenizer_inputs = [ov.op.Parameter(Type.string, ov.PartialShape(["?"]))]
+    auto tokenizer_inputs = std::make_shared<ov::op::v0::Parameter>(
+        ov::element::string, ov::PartialShape{-1});
+    set_name(tokenizer_inputs, "tokenizer_inputs");
+
+    // 3 tensors: begins[i32], ends[i32], chars[u8]
+    // outputs = opset.string_tensor_unpack(tokenizer_inputs[0]).outputs()
+    auto string_tensor_unpacked = std::make_shared<ov::op::v15::StringTensorUnpack>(
+        tokenizer_inputs
+    )->outputs();
+
+    std::cout << "outputs size: " << string_tensor_unpacked.size() << "\n";
+    std::cout << "outputs[0] type: " << string_tensor_unpacked[0].get_element_type() << "\n";
+    std::cout << "outputs[0] shape: " << string_tensor_unpacked[0].get_partial_shape() << "\n";
+    std::cout << "outputs[1] type: " << string_tensor_unpacked[1].get_element_type() << "\n";
+    std::cout << "outputs[1] shape: " << string_tensor_unpacked[1].get_partial_shape() << "\n";
+    std::cout << "outputs[2] type: " << string_tensor_unpacked[2].get_element_type() << "\n";
+    std::cout << "outputs[2] shape: " << string_tensor_unpacked[2].get_partial_shape() << "\n";
+
+    // 5 tensors: ragged_begins[i32], ragged_ends[i32], begins[i32], ends[i32], chars[u8]
+    // outputs = add_ragged_dimension(outputs)
+    // auto [ragged_begin, ragged_end] = add_ragged_dimension(outputs->outputs());
+    auto ragged_output = add_ragged_dimension(string_tensor_unpacked);
+    std::cout << "ragged_output size: " << ragged_output.size() << "\n";
+    std::cout << "outputs[0] type: " << ragged_output[0].get_element_type() << "\n";
+    std::cout << "outputs[0] shape: " << ragged_output[0].get_partial_shape() << "\n";
+    std::cout << "outputs[1] type: " << ragged_output[1].get_element_type() << "\n";
+    std::cout << "outputs[1] shape: " << ragged_output[1].get_partial_shape() << "\n";
+    std::cout << "outputs[2] type: " << ragged_output[2].get_element_type() << "\n";
+    std::cout << "outputs[2] shape: " << ragged_output[2].get_partial_shape() << "\n";
+    std::cout << "outputs[3] type: " << ragged_output[3].get_element_type() << "\n";
+    std::cout << "outputs[3] shape: " << ragged_output[3].get_partial_shape() << "\n";
+    std::cout << "outputs[4] type: " << ragged_output[4].get_element_type() << "\n";
+    std::cout << "outputs[4] shape: " << ragged_output[4].get_partial_shape() << "\n";
+    /*
+    special_tokens = [
+        token
+        for token, token_type in zip(tokenizer_config["tokens"], tokenizer_config["token_type"])
+        if is_special(token_type)
+    ]
+    special_tokens_re = "|".join(special_tokens)
+    */
+    /*
+    std::vector<std::int> special_tokens;
+    for (size_t i = 0; i < tokens.size(); ++i) {
+        if (is_special(tokens_type[i])) {
+            special_tokens.push_back(tokens[i]);
+        }
+    }
+    */
+    return nullptr;
+}
+
 std::shared_ptr<ov::Model> create_from_gguf(const std::string& model_path) {
     auto start_time = std::chrono::high_resolution_clock::now();
     std::cout << "Loading and unpacking model from: " << model_path << std::endl;
@@ -161,10 +309,12 @@ std::shared_ptr<ov::Model> create_from_gguf(const std::string& model_path) {
     std::cout << "Start generating OV model..." << std::endl;
     
     std::shared_ptr<ov::Model> model;
+    std::shared_ptr<ov::Model> tokenizer;
 
     const std::string model_arch = std::get<std::string>(config.at("architecture"));
     if (!model_arch.compare("llama") || !model_arch.compare("qwen2")) {
         model = create_language_model(config, consts, qtypes);
+        tokenizer = create_tokenizer_model(config, consts);
     } else {
         OPENVINO_THROW("Unsupported model architecture '", model_arch, "'");
     }

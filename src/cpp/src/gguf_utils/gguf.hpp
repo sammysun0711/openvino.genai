@@ -20,7 +20,7 @@ extern "C" {
 }
 
 using GGUFMetaData =
-    std::variant<std::monostate, float, int, ov::Tensor, std::string, std::vector<std::string>>;
+    std::variant<std::monostate, float, int, bool, ov::Tensor, std::string, std::vector<std::string>, std::vector<int>>;
 
 template<typename... Args>
 std::string format(std::string fmt, Args... args);

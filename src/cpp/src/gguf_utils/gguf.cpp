@@ -229,8 +229,11 @@ std::unordered_map<std::string, GGUFMetaData> load_metadata(gguf_ctx* ctx) {
     std::unordered_map<std::string, GGUFMetaData> metadata;
     gguf_key key;
     while (gguf_get_key(ctx, &key)) {
+        std::cout << "key.name: " << key.name << ", key.namelen: " << key.namelen << ", key.type: " << key.type << std::endl;
+
         std::string key_name = std::string(key.name, key.namelen);
         auto& val = metadata.insert({key_name, GGUFMetaData{}}).first->second;
+        std::cout << "key.type: " << key.type << ", key.val: " << key.val << std::endl;
         set_value_from_gguf(ctx, key.type, key.val, val);
     }
     return metadata;
@@ -344,6 +347,32 @@ int metadata_to_int(const std::unordered_map<std::string, GGUFMetaData>& metadat
     auto tensor = std::get<ov::Tensor>(metadata.at(key));
     return *(tensor.data<ov::element_type_traits<ov::element::i32>::value_type>());
 }
+/*
+std::vector<int> metadata_to_vector_int(const std::unordered_map<std::string, GGUFMetaData>& metadata, const std::string& key) {
+    auto tensor = std::get<ov::Tensor>(metadata.at(key));
+    std::cout << "tensors.get_shape(): " << tensor.get_shape() << "\n";
+    std::vector<int> vec;
+    vec.resize(tensor.get_shape()[0], 0);
+
+    //for (size_t i = 0; i < vec.size(); ++i) {
+    //    vec[i] = tensor.sizes()[i];
+    //}
+    //std::reverse(vec.begin() + 2, vec.end());
+    std::cout << "before memcpy\n";
+    //std::memcpy(tensor.data(), &vec[0], vec.size() * sizeof(int));
+    std::memcpy(&vec, tensor.data(), tensor.get_shape()[0] * sizeof(int));
+    std::cout << "after memcpy\n";
+    return vec;
+}
+*/
+bool metadata_to_boolean(const std::unordered_map<std::string, GGUFMetaData>& metadata, const std::string& key) {
+    auto tensor = std::get<ov::Tensor>(metadata.at(key));
+    return *(tensor.data<ov::element_type_traits<ov::element::boolean>::value_type>());
+}
+
+std::string metadata_to_string(const std::unordered_map<std::string, GGUFMetaData>& metadata, const std::string& key) {
+    return std::get<std::string>(metadata.at(key));
+}
 
 std::map<std::string, GGUFMetaData> config_from_meta(const std::unordered_map<std::string, GGUFMetaData>& metadata) {
     std::map<std::string, GGUFMetaData> config;
@@ -363,6 +392,40 @@ std::map<std::string, GGUFMetaData> config_from_meta(const std::unordered_map<st
     config["rope_freq_base"] = metadata.count(arch + ".rope.freq_base") ?
             metadata_to_float(metadata, arch + ".rope.freq_base") : 10000.0f;
     config["file_type"] = metadata_to_int(metadata, "general.file_type");
+    std::cout << "before metadata_to_string\n";
+    std::cout << "tokenizer.model\n";
+    config["tokenizer.model"] = std::get<std::string>(metadata.at("tokenizer.ggml.model"));
+    
+    std::cout << "tokenizer.pre\n";
+    config["tokenizer.pre"] = std::get<std::string>(metadata.at("tokenizer.ggml.pre"));
+    
+    std::cout << "tokenizer.tokens\n";
+    config["tokenizer.tokens"] = std::get<std::vector<std::string>>(metadata.at("tokenizer.ggml.tokens"));
+
+    //std::cout << "tokenizer.token_type\n";
+    //config["tokenizer.token_type"] = metadata_to_vector_int(metadata, "tokenizer.ggml.token_type");
+
+    std::cout << "tokenizer.merges\n";
+    config["tokenizer.merges"] = std::get<std::vector<std::string>>(metadata.at("tokenizer.ggml.merges"));
+
+    std::cout << "tokenizer.eos_token_id\n";
+    config["tokenizer.eos_token_id"] = metadata_to_int(metadata, "tokenizer.ggml.eos_token_id");
+    
+    //std::get<int64_t>(metadata.at("tokenizer.ggml.eos_token_id"));
+    std::cout << "tokenizer.padding_token_id\n";
+    config["tokenizer.padding_token_id"] = metadata_to_int(metadata, "tokenizer.ggml.padding_token_id");
+    
+    std::cout << "tokenizer.bos_token_id\n";
+    config["tokenizer.bos_token_id"] = metadata_to_int(metadata, "tokenizer.ggml.bos_token_id");
+    
+    std::cout << "tokenizer.add_bos_token\n";
+    config["tokenizer.add_bos_token"] = metadata_to_boolean(metadata, "tokenizer.ggml.add_bos_token");
+    
+    std::cout << "tokenizer.chat_template\n";
+    config["tokenizer.chat_template"] = std::get<std::string>(metadata.at("tokenizer.chat_template"));
+
+    std::cout << "after metadata_to_string\n";
+
     return config;
 }
 
