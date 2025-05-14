@@ -214,6 +214,17 @@ bool is_special(int token_type){
     return token_type == 3 || token_type == 4;
 }
 
+std::string join_with_pipe(const std::vector<std::string>& tokens) {
+    std::ostringstream oss;
+    for (size_t i = 0; i < tokens.size(); ++i) {
+        oss << tokens[i];
+        if (i + 1 < tokens.size()) {
+            oss << "|";
+        }
+    }
+    return oss.str();
+}
+
 std::shared_ptr<ov::Model> create_tokenizer_model(
     const std::map<std::string, GGUFMetaData>& configs,
     std::unordered_map<std::string, ov::Tensor>& consts) { 
@@ -236,8 +247,8 @@ std::shared_ptr<ov::Model> create_tokenizer_model(
     std::vector<std::string> tokens = std::get<std::vector<std::string>>(configs.at("tokenizer.tokens"));
     std::cout << "tokens[0]: " << tokens[0] << "\n";
 
-    //std::vector<int> tokens_type = std::get<std::vector<int>>(configs.at("tokenizer.tokens_type"));
-    //std::cout << "token_type[0]" << token_type[0] << "\n";
+    std::vector<int32_t> token_type = std::get<std::vector<int32_t>>(configs.at("tokenizer.token_type"));
+    std::cout << "token_type[0]: " << token_type[0] << "\n";
 
     std::vector<std::string> merges = std::get<std::vector<std::string>>(configs.at("tokenizer.merges"));
     std::cout << "merges[0]: " << merges[0] << "\n";
@@ -289,14 +300,20 @@ std::shared_ptr<ov::Model> create_tokenizer_model(
     ]
     special_tokens_re = "|".join(special_tokens)
     */
-    /*
-    std::vector<std::int> special_tokens;
+
+    std::vector<std::string> special_tokens;
     for (size_t i = 0; i < tokens.size(); ++i) {
-        if (is_special(tokens_type[i])) {
+        if (is_special(token_type[i])) {
             special_tokens.push_back(tokens[i]);
         }
     }
-    */
+    for (size_t i = 0; i < special_tokens.size(); ++i) {
+        std::cout << "special_tokens[" << i << "]: " << special_tokens[i] << "\n";
+    }
+
+    std::string special_tokens_re = join_with_pipe(special_tokens);
+    std::cout << "special_tokens_re regex pattern: " << special_tokens_re << std::endl;
+
     return nullptr;
 }
 

@@ -158,6 +158,7 @@ void set_value_from_gguf(gguf_ctx* ctx, uint32_t type, gguf_value* val, GGUFMeta
         *(std::get<ov::Tensor>(value).data<ov::element_type_traits<ov::element::f64>::value_type>()) = val->float64;
         break;
     case GGUF_VALUE_TYPE_ARRAY: {
+        std::cout << "GGUF_VALUE_TYPE_ARRAY\n";
         ctx->off += gguf_array_header_size;  // Skip header
         char* data = reinterpret_cast<char*>(val) + gguf_array_header_size;
         auto size = static_cast<size_t>(val->array.len);
@@ -179,9 +180,19 @@ void set_value_from_gguf(gguf_ctx* ctx, uint32_t type, gguf_value* val, GGUFMeta
         case GGUF_VALUE_TYPE_UINT32:
             value = ov::Tensor(ov::element::u32, {size}, reinterpret_cast<uint32_t*>(data));
             break;
-        case GGUF_VALUE_TYPE_INT32:
-            value = ov::Tensor(ov::element::i32, {size}, reinterpret_cast<int32_t*>(data));
+        case GGUF_VALUE_TYPE_INT32: {
+            std::cout << "GGUF_VALUE_TYPE_INT32: " << GGUF_VALUE_TYPE_INT32 << "\n";
+            //value = ov::Tensor(ov::element::i32, {size}, reinterpret_cast<int32_t*>(data));
+            std::vector<int32_t> vec_int32(size);
+            for (auto& v : vec_int32) {
+                auto int_val = reinterpret_cast<int32_t*>(data);
+                data += sizeof(int32_t);
+                v = static_cast<int32_t>(*int_val);
+                ctx->off += sizeof(int32_t);
+            }
+            value = std::move(vec_int32);
             break;
+        }
         case GGUF_VALUE_TYPE_UINT64:
             value = ov::Tensor(ov::element::u64, {size}, reinterpret_cast<uint64_t*>(data));
             break;
@@ -347,24 +358,7 @@ int metadata_to_int(const std::unordered_map<std::string, GGUFMetaData>& metadat
     auto tensor = std::get<ov::Tensor>(metadata.at(key));
     return *(tensor.data<ov::element_type_traits<ov::element::i32>::value_type>());
 }
-/*
-std::vector<int> metadata_to_vector_int(const std::unordered_map<std::string, GGUFMetaData>& metadata, const std::string& key) {
-    auto tensor = std::get<ov::Tensor>(metadata.at(key));
-    std::cout << "tensors.get_shape(): " << tensor.get_shape() << "\n";
-    std::vector<int> vec;
-    vec.resize(tensor.get_shape()[0], 0);
 
-    //for (size_t i = 0; i < vec.size(); ++i) {
-    //    vec[i] = tensor.sizes()[i];
-    //}
-    //std::reverse(vec.begin() + 2, vec.end());
-    std::cout << "before memcpy\n";
-    //std::memcpy(tensor.data(), &vec[0], vec.size() * sizeof(int));
-    std::memcpy(&vec, tensor.data(), tensor.get_shape()[0] * sizeof(int));
-    std::cout << "after memcpy\n";
-    return vec;
-}
-*/
 bool metadata_to_boolean(const std::unordered_map<std::string, GGUFMetaData>& metadata, const std::string& key) {
     auto tensor = std::get<ov::Tensor>(metadata.at(key));
     return *(tensor.data<ov::element_type_traits<ov::element::boolean>::value_type>());
@@ -402,8 +396,9 @@ std::map<std::string, GGUFMetaData> config_from_meta(const std::unordered_map<st
     std::cout << "tokenizer.tokens\n";
     config["tokenizer.tokens"] = std::get<std::vector<std::string>>(metadata.at("tokenizer.ggml.tokens"));
 
-    //std::cout << "tokenizer.token_type\n";
+    std::cout << "tokenizer.token_type\n";
     //config["tokenizer.token_type"] = metadata_to_vector_int(metadata, "tokenizer.ggml.token_type");
+    config["tokenizer.token_type"] = std::get<std::vector<int32_t>>(metadata.at("tokenizer.ggml.token_type"));
 
     std::cout << "tokenizer.merges\n";
     config["tokenizer.merges"] = std::get<std::vector<std::string>>(metadata.at("tokenizer.ggml.merges"));
