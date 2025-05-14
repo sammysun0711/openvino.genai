@@ -13,8 +13,14 @@
 #include "openvino/opsets/opset13.hpp"
 #include "openvino/genai/tokenizer.hpp"
 
+#include <openvino/op/op.hpp>
+#include "openvino/core/extension.hpp"
+
 #include "gguf_utils/building_blocks.hpp"
 #include "gguf_utils/gguf_modeling.hpp"
+//#include "gguf_utils/node_factory.hpp"
+//#include "/home/openvino/workspaces/AIGC/openvino.genai/thirdparty/openvino_tokenizers/src/gguf_tokenizer.hpp"
+//#include "../../../../thirdparty/openvino_tokenizers/src/gguf_tokenizer.hpp"
 
 
 using namespace ov;
@@ -158,6 +164,7 @@ ov::Core core_with_extension() {
     const char* ov_tokenizer_path = "/home/openvino/workspaces/AIGC/openvino.genai/build/openvino_genai/libopenvino_tokenizers.so";
     OPENVINO_ASSERT(ov_tokenizer_path, "openvino_tokenizers path is not set");
     core.add_extension(ov_tokenizer_path);
+
     return core;
 }
 
@@ -174,16 +181,6 @@ def add_ragged_dimension(input_node: list[ov.Output]) -> list[ov.Output]:
         as_node(1), opset.add(batch_size, make_constant_node(1, Type.i64)), as_node(1), output_type="i32"
     ).outputs()
     return ragged_begins + ragged_ends + input_node
-*/
-/*
-std::tuple<ov::Output<ov::Node>, ov::Output<ov::Node>> add_ragged_dimension(const std::vector<ov::Output<ov::Node>>& input_node) {
-    auto shape = std::make_shared<ov::op::v3::ShapeOf>(input_node[0]);
-    auto batch_size = std::make_shared<ov::op::v8::Gather>(shape, ov::op::v0::Constant(ov::element::i64, {1}, 0), ov::op::v0::Constant(ov::element::i64, {1}, 0));
-    auto ragged_begins = std::make_shared<ov::op::v4::Range>(ov::op::v0::Constant(ov::element::i32, {1}, 0), batch_size, ov::op::v0::Constant(ov::element::i32, {1}, 1));
-    auto ragged_ends = std::make_shared<ov::op::v4::Range>(ov::op::v0::Constant(ov::element::i32, {1}, 1), std::make_shared<ov::op::v1::Add>(batch_size, ov::op::v0::Constant(ov::element::i32, {1}, 1)), ov::op::v0::Constant(ov::element::i32, {1}, 1));
-
-    return {ragged_begins->outputs()[0], ragged_ends->outputs()[0]};
-}
 */
 
 std::vector<ov::Output<ov::Node>> add_ragged_dimension(const std::vector<ov::Output<ov::Node>>& input_node) {
@@ -225,9 +222,28 @@ std::string join_with_pipe(const std::vector<std::string>& tokens) {
     return oss.str();
 }
 
+/*
+def create_string_constant(strings: Union[str, bytes, Iterable[Union[str, bytes]]]) -> list[ov.Output]:
+    if isinstance(strings, str):
+        return op.Constant(np.frombuffer(strings.encode("utf-8"), dtype=np.uint8)).outputs()
+
+    if isinstance(strings, bytes):
+        return op.Constant(np.frombuffer(strings, dtype=np.uint8)).outputs()
+
+    return create_unpacked_string(strings)
+*/
+
+/*
+std::string create_string_constant(std::string){
+    std::make_shared<op>
+    return create_unpacked_string(strings)
+
+}*/
+    
 std::shared_ptr<ov::Model> create_tokenizer_model(
     const std::map<std::string, GGUFMetaData>& configs,
     std::unordered_map<std::string, ov::Tensor>& consts) { 
+    
     std::cout << "Create tokenizer model called\n";
     std::string model_type = std::get<std::string>(configs.at("tokenizer.model"));
     std::cout << "model_type " << model_type << "\n";
@@ -239,8 +255,8 @@ std::shared_ptr<ov::Model> create_tokenizer_model(
     std::cout << "padding_token_id " << padding_token_id << "\n";
     int bos_token_id = std::get<int>(configs.at("tokenizer.bos_token_id"));
     std::cout << "bos_token_id " << bos_token_id << "\n";
-    auto add_bos_token = configs.at("tokenizer.add_bos_token");
-    //std::cout << "add_bos_token " << add_bos_token << "\n";
+    bool add_bos_token = std::get<bool>(configs.at("tokenizer.add_bos_token"));
+    std::cout << "add_bos_token " << add_bos_token << "\n";
     std::string chat_template = std::get<std::string>(configs.at("tokenizer.chat_template"));
     std::cout << "chat_template " << chat_template << "\n";
 
@@ -255,8 +271,11 @@ std::shared_ptr<ov::Model> create_tokenizer_model(
 
     std::cout << "Extract meta data finished\n";
 
-    ov::Core core = core_with_extension();
-
+    //auto tokenizer = std::make_shared<GGUFTokenizer>(model_type, pre, eos_token_id, padding_token_id, 
+    //    bos_token_id, add_bos_token, chat_template, tokens, token_type, merges);
+    ov::Core core = get_core_singleton();
+    
+    
     // 1 string tensor
     // tokenizer_inputs = [ov.op.Parameter(Type.string, ov.PartialShape(["?"]))]
     auto tokenizer_inputs = std::make_shared<ov::op::v0::Parameter>(
@@ -292,6 +311,7 @@ std::shared_ptr<ov::Model> create_tokenizer_model(
     std::cout << "outputs[3] shape: " << ragged_output[3].get_partial_shape() << "\n";
     std::cout << "outputs[4] type: " << ragged_output[4].get_element_type() << "\n";
     std::cout << "outputs[4] shape: " << ragged_output[4].get_partial_shape() << "\n";
+
     /*
     special_tokens = [
         token
