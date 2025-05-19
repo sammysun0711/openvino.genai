@@ -184,20 +184,17 @@ void compute_hash_sha1(const std::unordered_map<std::string, ov::Tensor>& consts
 
     SHA1Init(&sha1_model_hash_ctx);
 
-    for (const auto& pair : consts) {
-        const std::string& key = pair.first;
-        const ov::Tensor& tensor = pair.second;
-
+    for (auto it = consts.begin(); it != consts.end(); ++it) {
         // Per Layer Hash
         char result[21]; // sha1 outputs 20 bytes
-        SHA1( result, (const char *)tensor.data(), tensor.get_size());
+        SHA1( result, (const char *)it->second.data(), it->second.get_size());
 
         char hex_result[41] = {0};
         for (int  offset = 0; offset < 20; offset++) {
             snprintf( ( hex_result + (2*offset)), sizeof(hex_result) - (2*offset), "%02x", result[offset]&0xff);
         }
 
-        //printf("%-8s  %-s  %s\n", HASH_TYPE_SHA1_STR, hex_result, key.c_str());
+        // printf("%-8s  %-s  %s\n", HASH_TYPE_SHA1_STR, hex_result, it->first.c_str());
     }
 }
 /*
