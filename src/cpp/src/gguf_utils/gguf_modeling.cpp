@@ -15,11 +15,22 @@
 
 #include "gguf_utils/building_blocks.hpp"
 #include "gguf_utils/gguf_modeling.hpp"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
+#include "deps/sha1/sha1.h"
+#ifdef __cplusplus
+}
+#endif
 
 using namespace ov;
 using namespace ov::op::v13;
 using namespace ov::op;
+
+#define HASH_TYPE_SHA1_STR   "sha1"
+
+
 
 namespace {
 
@@ -166,12 +177,75 @@ void save_openvino_model(const std::shared_ptr<ov::Model>& model, const std::str
     }
 }
 
+void compute_hash_sha1(const std::unordered_map<std::string, ov::Tensor>& consts){
+
+    // sha1 init
+    SHA1_CTX sha1_model_hash_ctx;
+
+    SHA1Init(&sha1_model_hash_ctx);
+
+    for (const auto& pair : consts) {
+        const std::string& key = pair.first;
+        const ov::Tensor& tensor = pair.second;
+
+        // Per Layer Hash
+        char result[21]; // sha1 outputs 20 bytes
+        SHA1( result, (const char *)tensor.data(), tensor.get_size());
+
+        char hex_result[41] = {0};
+        for (int  offset = 0; offset < 20; offset++) {
+            snprintf( ( hex_result + (2*offset)), sizeof(hex_result) - (2*offset), "%02x", result[offset]&0xff);
+        }
+
+        //printf("%-8s  %-s  %s\n", HASH_TYPE_SHA1_STR, hex_result, key.c_str());
+    }
+}
+/*
+void compute_hash_xxhash(const std::unordered_map<std::string, ov::Tensor>& consts){
+
+    // xxh64 init
+    XXH64_state_t* xxh64_model_hash_state = NULL;
+    xxh64_model_hash_state = XXH64_createState();
+    if (xxh64_model_hash_state==NULL) {
+        abort();
+    }
+
+    XXH64_hash_t const seed = 0;
+    if (XXH64_reset(xxh64_model_hash_state, seed) == XXH_ERROR) {
+        abort();
+    }
+
+    for (const auto& pair : consts) {
+        const std::string& key = pair.first;
+        const ov::Tensor& tensor = pair.second;
+
+        // Per Layer Hash
+        XXH64_hash_t hash = XXH64(tensor.data(), tensor.get_size(), 0);
+
+        char hex_result[17];
+        for (int  offset = 0; offset < 8; offset++) {
+            unsigned int shift_bits_by = (8 * (8 - offset - 1));
+            snprintf( ( hex_result + (2*offset)), sizeof(hex_result) - (2*offset), "%02x", (unsigned char) (hash >> shift_bits_by)&0xff);
+        }
+
+        printf("%-8s  %-s  %s\n", HASH_TYPE_XXH64_STR, hex_result, key.c_str());
+    }
+}
+*/
+
 std::shared_ptr<ov::Model> create_from_gguf(const std::string& model_path, const ov::AnyMap& properties) {
     auto start_time = std::chrono::high_resolution_clock::now();
     std::cout << "Loading and unpacking model from: " << model_path << std::endl;
     auto [config, consts, qtypes] = load_gguf(model_path);
+
     auto load_finish_time = std::chrono::high_resolution_clock::now();
     std::cout << "Loading and unpacking model done. Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(load_finish_time - start_time).count() << "ms" << std::endl;
+
+    auto hash_start_time = std::chrono::high_resolution_clock::now();
+    compute_hash_sha1(consts);
+    auto hash_finish_time = std::chrono::high_resolution_clock::now();
+    std::cout << "Compute GGUF hash with SHA1 done. Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(hash_finish_time - hash_start_time).count() << "ms" << std::endl;
+
     std::cout << "Start generating OpenVINO model..." << std::endl;
 
     std::shared_ptr<ov::Model> model;
