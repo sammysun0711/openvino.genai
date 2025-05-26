@@ -114,14 +114,17 @@ ov::genai::LLMPipeline::LLMPipeline(
     const ov::AnyMap& user_properties) :
     m_device(device) {
     auto start_time = std::chrono::steady_clock::now();
+    std::cout << "Init llm pipeline\n";
 
     auto [properties, attention_backend] = utils::extract_attention_backend(user_properties);
 
     // If CB is invoked explicitly, create CB adapter as is and re-throw in case if internal issues
     if (utils::explicitly_requires_paged_attention(user_properties)) {
         auto [device_properties, scheduler_config] = utils::extract_scheduler_config(properties, utils::get_latency_oriented_scheduler_config());
+        std::cout << "m_pimpl = std::make_unique<ContinuousBatchingAdapter>(models_path, scheduler_config, device, device_properties);\n";
         m_pimpl = std::make_unique<ContinuousBatchingAdapter>(models_path, scheduler_config, device, device_properties);
     } else if (device == "NPU") {
+        std::cout << "device == NPU\n";
         m_pimpl = properties.count("STATIC_PIPELINE")
             ? static_llm::LLMPipelineFactory::create(models_path, properties)
             : std::make_unique<StatefulLLMPipeline>(models_path, device, properties);
@@ -131,6 +134,7 @@ ov::genai::LLMPipeline::LLMPipeline(
             // we need use CB only for x86 and arm64, as for other architectures like risc-v we can create Paged Attention based model
             // but cannot perform its inference later
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+            std::cout << "m_pimpl = std::make_unique<ContinuousBatchingAdapter>(models_path, utils::get_latency_oriented_scheduler_config(), device, properties);\n";
             m_pimpl = std::make_unique<ContinuousBatchingAdapter>(models_path, utils::get_latency_oriented_scheduler_config(), device, properties);
 #endif
         } catch (ov::Exception&) {
@@ -139,6 +143,7 @@ ov::genai::LLMPipeline::LLMPipeline(
     }
 
     if (m_pimpl == nullptr) {
+        std::cout << "m_pimpl = std::make_unique<StatefulLLMPipeline>(models_path, device, properties);" << std::endl;
         m_pimpl = std::make_unique<StatefulLLMPipeline>(models_path, device, properties);
     }
 
