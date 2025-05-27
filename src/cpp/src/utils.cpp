@@ -309,7 +309,6 @@ bool is_gguf_model(const std::filesystem::path& file_path) {
 } // namespace
 
 std::shared_ptr<ov::Model> read_model(const std::filesystem::path& model_dir,  const ov::AnyMap& config) {
-    std::cout << "read_model called\n";
     if (is_gguf_model(model_dir)) {
 #ifdef ENABLE_GGUF
         return create_from_gguf(model_dir.string());

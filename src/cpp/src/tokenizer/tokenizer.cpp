@@ -247,7 +247,6 @@ public:
 
         std::shared_ptr<ov::Model> ov_tokenizer = nullptr;
         std::shared_ptr<ov::Model> ov_detokenizer = nullptr;
-        /*
         std::map<std::string, GGUFMetaData> tokenizer_config{};
 
         if (is_gguf_model(models_path)) {
@@ -272,7 +271,6 @@ public:
             setup_tokenizer(std::make_pair(ov_tokenizer, ov_detokenizer), properties);
             return;
         }
-        */
         if (std::filesystem::exists(models_path / "openvino_tokenizer.xml")) {
             ov_tokenizer = core.read_model(models_path / "openvino_tokenizer.xml", {}, properties);
         }

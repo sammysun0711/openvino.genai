@@ -537,7 +537,7 @@ create_tokenizer_from_config(const std::shared_ptr<void>& shared_object_ov_token
     auto const_zero = std::make_shared<v0::Constant>(element::i32, ov::Shape{1}, 0);
     auto const_one = std::make_shared<v0::Constant>(element::i32, ov::Shape{1}, 1);
     auto const_int32_max =
-        std::make_shared<v0::Constant>(element::i32, ov::Shape{1}, std::numeric_limits<int32_t>::max());
+        std::make_shared<v0::Constant>(element::i32, ov::Shape{1}, std::numeric_limits<int32_t>::max);
     auto sliced_skips =
         std::make_shared<v8::Slice>(special_ids_const, const_zero, const_int32_max, const_one)->outputs();
     detokenizer_outputs.insert(detokenizer_outputs.end(), sliced_skips.begin(), sliced_skips.end());
