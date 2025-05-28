@@ -239,6 +239,43 @@ public:
         setup_tokenizer(models, properties);
     }
 
+    /**
+     * @brief This function aim to patch the chat template stored in gguf model to
+     * be consistent with chat template stored in the original tokenizer_config.json of huggingface models.
+     * If certain mismatched pattern found, then the pattern will be replaced with a specific substring.
+     * Otherwise, the original chat template is returned.
+     * Current this function is used to patch the chat template for Qwen2.5 models, but the logic can be extended to other models
+     *
+     *
+     * Example: The function finds the substring for Qwen2.5:
+     * "{{\"name\": <function-name>, \"arguments\": <args-json-object>}}"
+     * in the input string (str1_content) and replaces it with:
+     * "{\"name\": <function-name>, \"arguments\": <args-json-object>}"
+     *
+     * This assumes that "<function-name>" and "<args-json-object>" are literal
+     * parts of the substring to be found.
+     *
+     * @param chat_template A string contains original chat template stored in gguf models
+     * @return patched_chat_template A new string contains updated chat template with the specific replacement made if pattern matched.
+     */
+    std::string patch_chat_template(const std::string& chat_template) {
+        std::string patched_chat_template = chat_template;
+        // Define the exact pattern to find in orignal chat_template
+        // Using C++ raw string literals (R"(...)") to correctly represent the literal content,
+        const std::string qwen2_5_substring_to_find =
+            R"({{\"name\": <function-name>, \"arguments\": <args-json-object>}})";
+        // Define the exact replacement substring for str2
+        const std::string qwen2_5_replacement_substring =
+            R"({\"name\": <function-name>, \"arguments\": <args-json-object>})";
+        // Find the position of the substring to be replaced
+        size_t pos = patched_chat_template.find(qwen2_5_substring_to_find);
+        if (pos != std::string::npos) {
+            // Substring found, perform the replacement
+            patched_chat_template.replace(pos, qwen2_5_substring_to_find.length(), qwen2_5_replacement_substring);
+        }
+        return patched_chat_template;
+    }
+
     void setup_tokenizer(const std::filesystem::path& models_path, const ov::AnyMap& properties) {
         ScopedVar env_manager(tokenizers_relative_to_genai());
         auto core = get_core_singleton();
@@ -267,6 +304,10 @@ public:
             }
             if (auto val = get_if_exist<std::string>(tokenizer_config, "chat_template")) {
                 m_chat_template = *val;
+            }
+
+            if (!m_chat_template.empty()){
+                m_chat_template = patch_chat_template(m_chat_template);
             }
 
             setup_tokenizer(std::make_pair(ov_tokenizer, ov_detokenizer), properties);
