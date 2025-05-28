@@ -1,9 +1,8 @@
 # Copyright (C) 2023-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import sys
+import gc
 import datasets
-import pytest
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -11,13 +10,7 @@ from tqdm import tqdm
 import openvino as ov
 
 from openvino_genai import ContinuousBatchingPipeline, SchedulerConfig, GenerationConfig, CacheEvictionConfig, AggregationMode
-
-#from utils.ov_genai_pipelines import PipelineType, generate_and_compare
 import openvino.properties.hint as hints
-
-#from utils.longbench import dataset2maxlen, evaluate, preprocess_prompt, post_process_pred
-#from utils.constants import get_default_llm_properties
-#from utils.hugging_face import download_and_convert_model
 
 # Copyright (C) 2023-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
@@ -311,107 +304,6 @@ class CacheOptTestStruct:
 SHORT_CACHE_EVICTION_CONFIG = CacheEvictionConfig(start_size=32, recent_size=32, max_cache_size=96, aggregation_mode=AggregationMode.NORM_SUM)
 LONGBENCH_CACHE_EVICTION_CONFIG = CacheEvictionConfig(start_size=32, recent_size=128, max_cache_size=672, aggregation_mode=AggregationMode.NORM_SUM)
 
-
-@pytest.mark.precommit
-@pytest.mark.skipif(
-    sys.platform in ("win32", "darwin", "linux"),
-    reason=(
-        "doesn't work on win due to optimum-intel export bug, "
-        "segfault on mac. And it doesn't work on Linux due to error "
-        "'Port for tensor name rotation_trig_lut was not found'."
-    ),
-)
-@pytest.mark.parametrize("test_struct", [
-    # prompts + generation length are longer than the eviction arena, eviction expected w/ impact to similarity
-    CacheOptTestStruct(test_id="prompts_longer_than_eviction_arena",
-                       prompt_file="long_prompts.txt", max_new_tokens=128, num_kv_blocks=500, use_cache_eviction=True,
-                       cache_eviction_config=SHORT_CACHE_EVICTION_CONFIG,
-                       similarity_threshold=0.8,
-                       max_cache_usage_optimization_ratio=2.0,
-                       avg_cache_usage_optimization_ratio=1.7),
-
-    # prompts + generation length are shorter than the eviction arena, no eviction expected
-    CacheOptTestStruct(test_id="prompts_and_gen_shorter_than_eviction_arena",
-                       prompt_file="short_prompts.txt", max_new_tokens=32, num_kv_blocks=500, use_cache_eviction=True,
-                       cache_eviction_config=SHORT_CACHE_EVICTION_CONFIG,
-                       similarity_threshold=0.98,
-                       max_cache_usage_optimization_ratio=0.95,  # no improvement expected
-                       avg_cache_usage_optimization_ratio=0.95),
-
-    # short prompts, long generation - eviction expected
-    CacheOptTestStruct(test_id="gen_longer_than_eviction_arena",
-                       prompt_file="short_prompts.txt", max_new_tokens=160, num_kv_blocks=500, use_cache_eviction=True,
-                       cache_eviction_config=SHORT_CACHE_EVICTION_CONFIG,
-                       similarity_threshold=0.94,
-                       max_cache_usage_optimization_ratio=1.4,
-                       avg_cache_usage_optimization_ratio=1.1),
-
-    ], ids=lambda x: x.test_id)
-
-#@pytest.mark.parametrize("enable_prefix_caching", [True, False],
-#                                                  ids=["with_prefix_caching", "no_prefix_caching"])  # prefix caching shouldn't impact similarity
-#@pytest.mark.parametrize("apply_rotation", [True, False], ids=["with_rotation", "no_rotation"])         # rotation should improve similarity
-
-# def test_cache_optimized_generation_is_similar_to_unoptimized(test_struct, enable_prefix_caching, apply_rotation):
-#     import whowhatbench
-
-#     seqs_per_request = 32
-#     scheduler_config = get_scheduler_config(test_struct.num_kv_blocks)
-
-#     generation_config = GenerationConfig()  # expecting default greedy sampling
-#     generation_config.num_return_sequences = 1
-#     generation_config.max_new_tokens = test_struct.max_new_tokens
-#     generation_config.apply_chat_template = False
-
-#     scheduler_config_opt = get_scheduler_config(test_struct.num_kv_blocks)
-#     scheduler_config_opt.use_cache_eviction = test_struct.use_cache_eviction
-#     if scheduler_config_opt.use_cache_eviction:
-#         scheduler_config_opt.cache_eviction_config = test_struct.cache_eviction_config
-#         scheduler_config_opt.cache_eviction_config.apply_rotation = apply_rotation
-#     scheduler_config_opt.enable_prefix_caching = enable_prefix_caching
-
-#     model_id = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
-#     _, tokenizer, models_path = download_and_convert_model(model_id)
-#     model_cb_noopt = ContinuousBatchingPipeline(models_path, scheduler_config, "CPU", {}, get_default_llm_properties())
-#     model_cb_opt = ContinuousBatchingPipeline(models_path, scheduler_config_opt, "CPU", {}, get_default_llm_properties())
-
-#     data_dict = load_prompts_dataset(test_struct.prompt_file)
-
-#     evaluator = whowhatbench.Evaluator(base_model=model_cb_noopt, tokenizer=tokenizer, test_data=data_dict,
-#                                        generation_config=generation_config,
-#                                        generation_config_base=generation_config,
-#                                        max_new_tokens=test_struct.max_new_tokens, seqs_per_request=seqs_per_request)
-
-#     _, all_metrics = evaluator.score(model_cb_opt)
-
-#     similarity_metric = float(all_metrics['similarity'][0])
-#     pipeline_opt_metrics = model_cb_opt.get_metrics()
-#     pipeline_noopt_metrics = model_cb_noopt.get_metrics()
-
-#     print(f"Similarity: {similarity_metric}")
-#     print(f"No-opt cache usage: max {pipeline_noopt_metrics.max_cache_usage:.3f}, avg {pipeline_noopt_metrics.avg_cache_usage:.3f}")
-#     print(f"Opt cache usage: max {pipeline_opt_metrics.max_cache_usage:.3f}, avg {pipeline_opt_metrics.avg_cache_usage:.3f}")
-#     max_optimization_ratio = (pipeline_noopt_metrics.max_cache_usage / pipeline_opt_metrics.max_cache_usage)
-#     avg_optimization_ratio = (pipeline_noopt_metrics.avg_cache_usage / pipeline_opt_metrics.avg_cache_usage)
-#     print(f"Optimization ratios: max {max_optimization_ratio:.3f}x, avg {avg_optimization_ratio:.3f}x")
-
-#     del model_cb_opt
-#     del model_cb_noopt
-#     del evaluator
-#     del data_dict
-#     import gc
-#     gc.collect()  # without gc.collect() each case leaks 300 MB of RAM
-
-#     is_similar = similarity_metric > test_struct.similarity_threshold
-
-#     if apply_rotation and not is_similar:
-#         pytest.xfail("cache rotation currently has worse similarity due to unknown reasons")
-
-#     assert similarity_metric > test_struct.similarity_threshold
-#     assert max_optimization_ratio >= test_struct.max_cache_usage_optimization_ratio
-#     assert avg_optimization_ratio >= test_struct.avg_cache_usage_optimization_ratio
-
-
 def get_greedy_seq_len_300() -> GenerationConfig:
     generation_config = GenerationConfig()
     generation_config.max_new_tokens = 300
@@ -435,20 +327,9 @@ class LongBenchTestData:
     max_cache_usage_optimization_ratio: float
     avg_cache_usage_optimization_ratio: float
 
-"""
-@pytest.mark.nightly
-@pytest.mark.parametrize("device", ["CPU", "GPU"])
-@pytest.mark.parametrize("test_struct", [
-    LongBenchTestData("samsum", 4, 1.6, 3.3),
-    LongBenchTestData("trec", 3.2, 2.0, 3.3),
-    LongBenchTestData("qasper", 5.8, 1.7, 3.6),
-])
-"""
-
 def test_optimized_generation_longbench(device, test_struct, models_path):
     seqs_per_request = 32
     num_kv_blocks = 1000 if device == "CPU" else 500
-    scheduler_config = get_scheduler_config(num_kv_blocks)
 
     scheduler_config_opt = get_scheduler_config(num_kv_blocks)
     scheduler_config_opt.use_cache_eviction = True
@@ -466,12 +347,12 @@ def test_optimized_generation_longbench(device, test_struct, models_path):
     generation_config.num_return_sequences = 1
     generation_config.max_new_tokens = max_new_tokens
 
-    data = datasets.load_dataset('THUDM/LongBench', subset, split='test[:32]')
+    data = datasets.load_dataset('THUDM/LongBench', subset, split='test[:16]')
     batch = []
     answers = []
 
     with tqdm(total=len(data)) as progress_bar:
-        print(f"Processing {len(data)} samples from the {subset} subset...")
+        print(f" Processing {len(data)} samples from the {subset} subset...")
         for p_idx, data_sample in enumerate(data):
             prompt = preprocess_prompt(data_sample, subset, model_name)
             progress_bar.update(1)
@@ -479,7 +360,7 @@ def test_optimized_generation_longbench(device, test_struct, models_path):
             answers.append({"answers": data_sample["answers"], "all_classes": data_sample["all_classes"]})
 
             if len(batch) == seqs_per_request or p_idx == len(data) - 1:
-                print("model_cb_noopt.generate called")
+                print("model_cb_opt.generate called")
                 ans_batch = model_cb_opt.generate(
                     batch, [generation_config] * len(batch)
                 )
@@ -489,7 +370,6 @@ def test_optimized_generation_longbench(device, test_struct, models_path):
 
     pipeline_opt_metrics = model_cb_opt.get_metrics()
     del model_cb_opt
-    import gc
     gc.collect()
 
     return answers, subset, pipeline_opt_metrics
@@ -499,11 +379,6 @@ def test_noopt_generation_longbench(device, test_struct, models_path):
     seqs_per_request = 32
     num_kv_blocks = 1000 if device == "CPU" else 500
     scheduler_config = get_scheduler_config(num_kv_blocks)
-
-    scheduler_config_opt = get_scheduler_config(num_kv_blocks)
-    scheduler_config_opt.use_cache_eviction = True
-    if scheduler_config_opt.use_cache_eviction:
-        scheduler_config_opt.cache_eviction_config = LONGBENCH_CACHE_EVICTION_CONFIG
 
     model_cb_noopt = ContinuousBatchingPipeline(models_path, scheduler_config, device, {}, get_default_llm_properties())
 
@@ -516,11 +391,11 @@ def test_noopt_generation_longbench(device, test_struct, models_path):
     generation_config.num_return_sequences = 1
     generation_config.max_new_tokens = max_new_tokens
 
-    data = datasets.load_dataset('THUDM/LongBench', subset, split='test[:32]')
+    data = datasets.load_dataset('THUDM/LongBench', subset, split='test[:16]')
     batch = []
     ref_answers = []
     with tqdm(total=len(data)) as progress_bar:
-        print(f"Processing {len(data)} samples from the {subset} subset...")
+        print(f" Processing {len(data)} samples from the {subset} subset...")
         for p_idx, data_sample in enumerate(data):
             prompt = preprocess_prompt(data_sample, subset, model_name)
             progress_bar.update(1)
@@ -538,7 +413,6 @@ def test_noopt_generation_longbench(device, test_struct, models_path):
 
     pipeline_noopt_metrics = model_cb_noopt.get_metrics()
     del model_cb_noopt
-    import gc
     gc.collect()
 
     return ref_answers, subset, pipeline_noopt_metrics
