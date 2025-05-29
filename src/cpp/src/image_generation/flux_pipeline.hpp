@@ -22,7 +22,7 @@ ov::Tensor pack_latents(const ov::Tensor latents, size_t batch_size, size_t num_
 
     OPENVINO_ASSERT(latents.get_size() == permuted_latents.get_size(), "Incorrect target shape, tensors must have the same sizes");
 
-    float* src_data = latents.data<float>();
+    auto src_data = latents.data<float>();
     float* dst_data = permuted_latents.data<float>();
 
     // Permute to (0, 2, 4, 1, 3, 5)
@@ -636,7 +636,7 @@ protected:
         }
     }
 
-    // Returns non-empty updated adapters iff they are required to be updated
+    // Returns non-empty updated adapters if they are required to be updated
     static std::optional<AdapterConfig> derived_adapters(const AdapterConfig& adapters) {
         return ov::genai::derived_adapters(adapters, flux_adapter_normalization);
     }

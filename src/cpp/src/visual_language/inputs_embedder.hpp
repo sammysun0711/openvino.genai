@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <filesystem>
+#include <regex>
 
 #include "utils.hpp"
 #include "lm_encoding.hpp"
@@ -19,6 +20,7 @@
 
 namespace ov::genai {
 struct VLMPerfMetrics;
+const static std::regex UNIVERSAL_PATTERN{R"(<ov_genai_image_(\d+)>)"};
 
 class InputsEmbedder {
 public:
@@ -33,9 +35,9 @@ public:
                    const ov::AnyMap device_config);
 
     // compute input embedding for prompt and multiple images
-    ov::Tensor get_inputs_embeds(const std::string& prompt, const std::vector<ov::Tensor>& images, ov::genai::VLMPerfMetrics& metrics);
+    ov::Tensor get_inputs_embeds(const std::string& prompt, const std::vector<ov::Tensor>& images, ov::genai::VLMPerfMetrics& metrics, const std::vector<size_t>& image_sequence);
 
-    ov::Tensor get_inputs_embeds(const std::string& prompt, const std::vector<ov::genai::EncodedImage>& images, ov::genai::VLMPerfMetrics& metrics);
+    ov::Tensor get_inputs_embeds(const std::string& prompt, const std::vector<ov::genai::EncodedImage>& images, ov::genai::VLMPerfMetrics& metrics, bool recalculate_merged_embeddings = true, const std::vector<size_t>& image_sequence = {});
 
     std::vector<ov::genai::EncodedImage> encode_images(const std::vector<ov::Tensor>& images);
 
@@ -63,7 +65,11 @@ public:
     // finishes chat and clears a chat history 
     void finish_chat();
 
-    bool prompt_has_image_tag(const std::string& prompt) const;
+    virtual std::pair<std::string, std::vector<size_t>> normalize_prompt(
+        const std::string& prompt,
+        size_t base_id,
+        const std::vector<EncodedImage>& images
+    ) const;
 
 private:
     class IInputsEmbedder {
@@ -82,7 +88,6 @@ private:
         // history between generate() calls.
         bool m_is_chat_conversation = false;
         // Chat history
-        ChatHistory m_history;
         // True if chat template should be applied for non-chat scenario
         bool m_apply_chat_template = true;
         // Finish reason of last generation for chat scenario
@@ -91,14 +96,11 @@ private:
         utils::KVCacheState m_kv_cache_state;
         // length of attention_mask/kv cache at the beginning of generation()
         size_t m_prev_hist_length = 0;
-        // Verifies no previous image is referenced.
-        // InputsEmbedderMiniCPM Uses to insert <image_id>i</image_id> per image (not a slice).
-        size_t m_image_id = 0;
 
     public:
-        virtual ov::Tensor get_inputs_embeds(const std::string& prompt, const std::vector<ov::genai::EncodedImage>& images, ov::genai::VLMPerfMetrics& metrics) = 0;
+        virtual ov::Tensor get_inputs_embeds(const std::string& prompt, const std::vector<ov::genai::EncodedImage>& images, ov::genai::VLMPerfMetrics& metrics, bool recalculate_merged_embeddings = true, const std::vector<size_t>& image_sequence = {}) = 0;
 
-        ov::Tensor get_inputs_embeds(const std::string& prompt, const std::vector<ov::Tensor>& images, ov::genai::VLMPerfMetrics& metrics);
+        ov::Tensor get_inputs_embeds(const std::string& prompt, const std::vector<ov::Tensor>& images, ov::genai::VLMPerfMetrics& metrics, const std::vector<size_t>& image_sequence);
 
         virtual std::vector<ov::genai::EncodedImage> encode_images(const std::vector<ov::Tensor>& images);
     
@@ -126,7 +128,11 @@ private:
     
         virtual void finish_chat();
 
-        virtual bool prompt_has_image_tag(const std::string& prompt) const;
+        virtual std::pair<std::string, std::vector<size_t>> normalize_prompt(
+            const std::string& prompt,
+            size_t base_id,
+            const std::vector<EncodedImage>& images
+        ) const = 0;
     
     protected:
         IInputsEmbedder(
@@ -149,6 +155,14 @@ private:
 
         ov::Tensor get_encoded_input_ids(const std::string& prompt, ov::genai::VLMPerfMetrics& metrics);
 
+        std::pair<std::string, std::vector<size_t>> normalize(
+            const std::string& prompt,
+            const std::string& native_tag,
+            const std::string& automatic_tag,
+            size_t base_id,
+            size_t n_images
+        ) const;
+
         /**
         * @brief Converts a vector of batched images ([NHWC]) into a vector of individual image tensors ([1HWC]).
         *
@@ -166,25 +180,48 @@ private:
     friend class InputsEmbedderInternVLChat;
     friend class InputsEmbedderPhi3V;
     friend class InputsEmbedderQwen2VL;
+    friend class InputsEmbedderQwen2_5_VL;
 };
 
-/// @brief Check if universal tag is given.
-/// Check if native tag is given.
-/// Assert different tag aren't mixed.
-/// If no any tag, prepend universal image tag.
-/// If native tag, assume incremental image order.
-/// Else replace universal tags with native tags and save image order.
-/// @param unified_tag_to_native_tag MiniCPM-V-2_6 inserts
+template <typename Func>
+std::pair<std::string, std::vector<size_t>> universal_to_native(
+    const std::string& prompt,
+    const Func& write_native
+) {
+    std::stringstream stream;
+    std::vector<size_t> image_sequence;
+    std::smatch match;
+    std::regex_search(prompt, match, UNIVERSAL_PATTERN);
+    auto search_begin = prompt.begin();
+    while (!match.empty()) {
+        stream.write(&*search_begin, match.position());
+        image_sequence.push_back(std::stoul(match.str(1)));
+        write_native(stream, image_sequence.back());
+        search_begin = match.suffix().first;
+        std::regex_search(search_begin, prompt.end(), match, UNIVERSAL_PATTERN);
+    }
+    stream.write(&*search_begin, prompt.end() - search_begin);
+    return {stream.str(), std::move(image_sequence)};
+}
+
+void verify_ids(const std::vector<size_t>& image_ids, size_t base_id, size_t n_images);
+
+/// @brief 1. Verify native and universal tags aren't mixed.
+/// 2. Replace universal tags with native and save image order.
+/// 3. If there were no universal tags, restore image order from native.
+/// 4. If no tags were found, prepend native tags and assume incremental
+/// ordering.
+/// @param automatic_tag MiniCPM-V-2_6 inserts
 /// (<image>./</image>)\n per image but it only replaces
 /// <image>./</image> leaving ()\n untouched.
-/// unified_tag_to_native_tag allows to handle this by being separated
+/// automatic_tag allows to handle this by being separated
 /// from native_tag param.
-std::pair<std::string, std::vector<size_t>> unify_prompt(
+std::pair<std::string, std::vector<size_t>> normalize_prompt(
     const std::string& prompt,
     const std::string& native_tag,
-    const std::string& unified_tag_to_native_tag,
-    size_t n_new_images,
-    size_t first_new_image_id
+    const std::string& automatic_tag,
+    size_t base_id,
+    size_t n_images
 );
 
 } // namespace ov::genai

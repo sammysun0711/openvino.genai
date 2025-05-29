@@ -37,7 +37,7 @@ public:
 
 struct Dataset {
     std::vector<std::string> m_prompts;
-    std::vector<ov::Tensor> m_rgbs;
+    std::vector<std::vector<ov::Tensor>> m_rgbs;
     std::vector<ov::genai::GenerationConfig> m_sampling_params;
     std::vector<size_t> m_input_lens, m_output_lens;
 
@@ -52,7 +52,7 @@ struct Dataset {
         m_output_lens.reserve(size);
     }
 
-    void push_data(std::string prompt, ov::genai::GenerationConfig sampling_params, ov::Tensor rgb) {
+    void push_data(std::string prompt, ov::genai::GenerationConfig sampling_params, std::vector<ov::Tensor> rgb) {
         m_prompts.push_back(prompt);
         m_rgbs.push_back(rgb);
         m_sampling_params.push_back(sampling_params);
@@ -96,9 +96,9 @@ Dataset filtered_dataset(const std::string& models_path,
     // from vLLM tput benchmark
     const float dataset_size_coeff = 1.2f;
 
-    std::cout << "Before nlohmann::json::parse(json_file);" << "\n";
+    // std::cout << "Before nlohmann::json::parse(json_file);" << "\n";
     nlohmann::json json_dataset = nlohmann::json::parse(json_file);
-    std::cout << "After nlohmann::json::parse(json_file);" << "\n";
+    // std::cout << "After nlohmann::json::parse(json_file);" << "\n";
 
     Dataset sampled_dataset, dataset;
     const size_t num_prompt_candidates = static_cast<size_t>(num_prompts * dataset_size_coeff);
@@ -112,38 +112,27 @@ Dataset filtered_dataset(const std::string& models_path,
          ++json_data_iterator) {
         auto& json_data = *json_data_iterator;
 
-        std::cout << "Enter loop\n";
+        //std::cout << "Enter loop\n";
         // Filter out the conversations with less than 2 turns.
         if (json_data["conversations"].size() < 2)
             continue;
 
-        // std::cout << "Current path is " << std::filesystem::current_path() << "\n";
-        // std::filesystem current_dir = std::filesystem::current_path();
         // Only keep the first two turns of each conversation.
-        std::cout << "Get human question\n";
+        // std::cout << "Get human question\n";
         std::string human_question = json_data["conversations"][0]["value"];
-        std::cout << "Get gpt answer\n";
+        // std::cout << "Get gpt answer\n";
         std::string gpt_answer = json_data["conversations"][1]["value"];
-        std::cout << "Get image name\n";
+        // std::cout << "Get image name\n";
         std::string image_name = json_data["image"];
-        std::cout << "Get image height\n";
+        // std::cout << "Get image height\n";
         size_t image_height = json_data["height"];
-        std::cout << "Get image width\n";
+        // std::cout << "Get image width\n";
         size_t image_width = json_data["width"];
 
-        //std::filesystem image_path = std::filesystem(std::filesystem::current_path() / image_name.string() + ".jpg");
-        //std::string image_path = (fs::current_path() / image_name).string() + ".jpg";
-        //std::cout << "image_path: " << image_path << "\n";
-        //std::filesystem::path image_path = std::filesystem::current_path() / "gpt4-o/image" / image_name + std::string(".jpg");
-        //std::cout << "image_path: " << image_path.string() << "\n";
-        //std::string image_path = "/home/openvino/workspaces/AIGC/openvino.genai/gpt4-o/image/0.jpg";
-        fs::path current_dir = fs::current_path();
-        std::cout << "current_dir: " << current_dir << "\n";
-        fs::path image_path = current_dir / "gpt4-o" / "image" / image_name;
-        std::cout << "image_path: " << image_path << "\n";
-        //std::filesystem::path image_path = std::filesystem::current_path() / "gpt4-o/image" / image_name + std::string(".jpg");
+        fs::path image_path = fs::current_path() / "ShareGPT-4o" / "image" / image_name;
+        // std::cout << "image_path: " << image_path << "\n";
 
-        ov::Tensor rgb = utils::load_image(image_path);
+        std::vector<ov::Tensor> rgb = utils::load_images(image_path);
 
         ov::Tensor _input_ids_prompt = tokenizer.encode(human_question).input_ids;
         size_t input_len = _input_ids_prompt.get_size();
@@ -286,7 +275,7 @@ public:
         this->start_time = start_time;
     }
 
-    void add_generation(ov::genai::VLMPipeline* pipe,
+    void add_generation(ov::genai::ContinuousBatchingPipeline* pipe,
                         Dataset* dataset,
                         size_t request_id,
                         bool is_speculative_decoding_enabled) {
@@ -297,15 +286,12 @@ public:
             // to enable dynamic speculative decoding
             // sampling_params.assistant_confidence_threshold = 0.4f;
         }
-        /*
+
         ov::genai::GenerationHandle generation_handle =
-            pipe->add_request(request_id, dataset->m_prompts[request_id],dataset->m_rgbs[request_id], sampling_params);
-        */
-        std::cout << "pipe->generate(dataset->m_prompts[request_id], ov::genai::image(dataset->m_rgbs[request_id])); called\n";
-        pipe->generate(dataset->m_prompts[request_id], ov::genai::image(dataset->m_rgbs[request_id]));
-        //pipe->generate(dataset->m_prompts[request_id], dataset->m_rgbs[request_id]);
+            pipe->add_request(request_id, dataset->m_prompts[request_id], dataset->m_rgbs[request_id], sampling_params);
+
         std::lock_guard<std::mutex> lock(mutex);
-        //generations_info.emplace_back(std::move(generation_handle), dataset->m_input_lens[request_id]);
+        generations_info.emplace_back(std::move(generation_handle), dataset->m_input_lens[request_id]);
     }
 
     size_t run() {
@@ -352,7 +338,7 @@ public:
     }
 };
 
-void trafficSimulator(ov::genai::VLMPipeline* pipe,
+void trafficSimulator(ov::genai::ContinuousBatchingPipeline* pipe,
                       Dataset* dataset,
                       std::string request_rate,
                       GenerationInfoCollector* generation_info_collector,
@@ -372,13 +358,6 @@ void trafficSimulator(ov::genai::VLMPipeline* pipe,
         distribution = std::exponential_distribution<>(numeric_request_rate);
     }
 
-    /*
-    std::cout << "Total input tokens: " << dataset->m_total_input_len << std::endl;
-    std::cout << "Total output tokens: " << dataset->m_total_output_len << std::endl;
-    std::cout << "Average input len: " << dataset->get_average_input_len() << " tokens" << std::endl;
-    std::cout << "Average output len: " << dataset->get_average_output_len() << " tokens" << std::endl;
-    */
-
     std::cout << "Launching traffic simulator thread with request_rate: " << request_rate << std::endl;
     generation_info_collector->set_start_time(std::chrono::steady_clock::now());
     for (size_t request_id = 0; request_id < dataset->size(); ++request_id) {
@@ -389,7 +368,7 @@ void trafficSimulator(ov::genai::VLMPipeline* pipe,
     }
     std::cout << "All requests sent, traffic simulation finished. Exiting thread." << std::endl;
 }
-/*
+
 void llmEngineLoop(ov::genai::ContinuousBatchingPipeline* pipe, Dataset* dataset, std::atomic<bool>* finishThread) {
     std::cout << "Launching LLM engine thread" << std::endl;
     size_t num_finished = 0;
@@ -401,27 +380,7 @@ void llmEngineLoop(ov::genai::ContinuousBatchingPipeline* pipe, Dataset* dataset
     }
     std::cout << "All requests processed, LLM Engine loop escaped. Exiting thread." << std::endl;
 }
-*/
 
-void llmEngineLoop(ov::genai::VLMPipeline* pipe, Dataset* dataset, std::atomic<bool>* finishThread) {
-    std::cout << "Launching LLM engine thread" << std::endl;
-    size_t num_finished = 0;
-    /*
-    while (!(*finishThread)) {
-        while (pipe->has_non_finished_requests()) {
-            pipe->step();
-        }
-    }
-    */
-    /*
-    while (!(*finishThread)) {
-        while (pipe->has_non_finished_requests()) {
-            pipe->step();
-        }
-    }*/
-
-    std::cout << "All requests processed, LLM Engine loop escaped. Exiting thread." << std::endl;
-}
 
 void statisticsReporter(GenerationInfoCollector* generations_info_collector, int num_prompts) {
     int num_finished = 0;
@@ -515,7 +474,7 @@ int main(int argc, char* argv[]) try {
             "."))("draft_model", "Path to assistant model directory", cxxopts::value<std::string>()->default_value(""))(
         "dataset",
         "Path to dataset .json file",
-        cxxopts::value<std::string>()->default_value("./ShareGPT_V3_unfiltered_cleaned_split.json"))(
+        cxxopts::value<std::string>()->default_value("./ShareGPT-4o/gpt-4o.json"))(
         "max_input_len",
         "Max input length take from dataset",
         cxxopts::value<size_t>()->default_value(
@@ -567,9 +526,9 @@ int main(int argc, char* argv[]) try {
 
     bool is_speculative_decoding_enabled = !draft_model_path.empty();
 
+    std::cout << "dataset_path: " << dataset_path << std::endl;
     // Create requests for generation
     Dataset dataset = filtered_dataset(models_path, dataset_path, num_prompts, max_input_len, max_output_len);
-
     // Perform the first inference
     ov::genai::SchedulerConfig scheduler_config;
     scheduler_config.max_num_batched_tokens = max_batch_size, scheduler_config.cache_size = cache_size,
@@ -606,10 +565,7 @@ int main(int argc, char* argv[]) try {
 
     // Benchmarking
     std::cout << "Loading models, creating pipelines, preparing environment..." << std::endl;
-    //ov::genai::ContinuousBatchingPipeline pipe(models_path, scheduler_config, device, device_config_map);
-    //ov::genai::VLMPipeline pipe(models_path, scheduler_config, device, device_config_map);
-    ov::genai::VLMPipeline pipe(models_path, device, device_config_map);
-    //ov::genai::ContinuousBatchingPipeline pipe(models_path, scheduler_config, device, device_config_map);
+    ov::genai::ContinuousBatchingPipeline pipe(models_path, scheduler_config, device, device_config_map);
 
     std::cout << "Setup finished, launching LLM executor, traffic simulation and statistics reporter threads"
               << std::endl;
